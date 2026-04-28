@@ -1,0 +1,2282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SPHERA — Industrial Multiphysics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;700;900&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500&family=Montserrat:wght@100;300;400;500;700;900&family=Ysabeau:wght@200;300&display=swap" rel="stylesheet" />
+<script>
+(function(){
+  function markReady(){ document.documentElement.classList.add('fonts-ready'); }
+  if(document.fonts && document.fonts.load){
+    document.fonts.load('100 48px Montserrat').then(markReady).catch(markReady);
+    setTimeout(markReady, 2500);
+  } else {
+    markReady();
+  }
+})();
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;background:#7ba3c5;font-family:'Jost',sans-serif;color:#2d628c}
+html{scroll-behavior:auto}    /* era 'smooth' — agora scroll contínuo, sem animação discreta do navegador */
+body{margin:0;overflow-x:hidden}
+
+#hero{position:fixed;inset:0;overflow:hidden;z-index:1}
+
+#scroll-stage{
+  position:relative;
+  width:100%;
+  height:400vh;
+  z-index:2;
+  pointer-events:none;
+}
+
+/* SEÇÕES DE STORY — conteúdo que rola naturalmente com o scroll.
+   Cada seção ocupa 100vh dentro do #scroll-stage (400vh total).
+   A cena 3D fica fixa no #hero e anima conforme o scroll. */
+.mf-story-section{
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  pointer-events: none;
+}
+
+.mf-story-title-wrap{
+  position: absolute;
+  left: clamp(24px, 3vw, 56px);
+  top: 52%;
+  transform: translateY(-50%);
+  width: min(86vw, 980px);
+  pointer-events: auto;
+}
+.mf-editorial-title{
+  font-family: 'Jost', sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  font-size: clamp(30px, 3.4vw, 56px);
+  line-height: 1.18;
+  letter-spacing: .015em;
+  color: rgb(45, 98, 140);
+  max-width: 980px;
+  margin: 0;
+}
+
+.mf-story-body-wrap{
+  position: absolute;
+  left: clamp(24px, 3vw, 56px);
+  top: 52%;
+  transform: translateY(calc(-50% + clamp(120px, 16vh, 220px)));
+  width: min(60vw, 560px);
+  pointer-events: auto;
+}
+.mf-editorial-body{
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: clamp(14px, 1.05vw, 17px);
+  line-height: 1.75;
+  letter-spacing: .04em;
+  color: rgba(35, 70, 105, 0.82);
+  max-width: 560px;
+  margin: 0;
+}
+
+@media (max-width: 900px){
+  .mf-story-title-wrap{
+    left: clamp(20px, 6vw, 40px);
+    top: 50%;
+    width: calc(100% - clamp(40px, 12vw, 80px));
+  }
+  .mf-story-body-wrap{
+    left: clamp(20px, 6vw, 40px);
+    top: 50%;
+    transform: translateY(calc(-50% + clamp(110px, 20vh, 200px)));
+    width: calc(100% - clamp(40px, 12vw, 80px));
+  }
+}
+
+#sky-bg{position:absolute;inset:0;z-index:0;background:#7ba3c5}
+#three-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
+
+#header{
+  position:absolute;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:38px clamp(30px,5vw,70px) 0;
+  height:82px;
+}
+.header-left{min-width:40px}
+.header-right{display:flex;align-items:center;gap:26px}
+
+.powered-by-corner{
+  position:absolute;
+  right:clamp(30px,5vw,70px);
+  bottom:30px;
+  z-index:10;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  pointer-events:none;
+  font-family:'Jost',sans-serif;
+  transition:opacity .5s ease;
+}
+.powered-by-corner .pb-prefix{
+  font-size:10px;font-weight:400;letter-spacing:.18em;
+  color:rgba(45,98,140,.75);text-transform:uppercase;
+}
+.powered-by-corner .pb-brand{
+  font-size:13px;font-weight:500;letter-spacing:.18em;
+  color:rgb(30,62,92);text-transform:uppercase;
+}
+body.scrolled-far .powered-by-corner{opacity:0}
+
+.menu-word{font-size:11px;font-weight:400;letter-spacing:.08em;color:rgba(45,98,140,.95);text-transform:uppercase;cursor:pointer}
+.menu-dots{display:flex;gap:4px}
+.menu-dots span{width:4px;height:4px;background:rgba(45,98,140,.95);border-radius:50%}
+
+.lang-switch{position:relative}
+.lang-current{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:400;letter-spacing:.08em;
+  color:rgba(45,98,140,.95);
+  text-transform:uppercase;cursor:pointer;
+  padding:6px 8px;background:transparent;border:none;
+  font-family:'Jost',sans-serif;
+}
+.lang-current:after{
+  content:"";width:6px;height:6px;
+  border-right:1px solid rgba(45,98,140,.75);
+  border-bottom:1px solid rgba(45,98,140,.75);
+  transform:translateY(-2px) rotate(45deg);
+  transition:transform .25s ease;
+}
+.lang-switch.open .lang-current:after{transform:translateY(1px) rotate(-135deg)}
+.lang-menu{
+  position:absolute;top:calc(100% + 6px);right:0;
+  background:rgba(248,251,254,.92);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(45,98,140,.14);
+  border-radius:2px;min-width:148px;padding:4px 0;
+  box-shadow:0 8px 24px rgba(30,60,90,.10);
+  opacity:0;visibility:hidden;transform:translateY(-4px);
+  transition:opacity .22s ease, transform .22s ease, visibility .22s ease;
+  z-index:200;
+}
+.lang-switch.open .lang-menu{opacity:1;visibility:visible;transform:translateY(0)}
+.lang-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 14px;
+  font-size:11px;font-weight:400;letter-spacing:.06em;
+  color:rgba(45,98,140,.85);text-transform:uppercase;
+  cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap;
+  transition:background .18s ease;
+}
+.lang-item:hover{background:rgba(45,98,140,.08)}
+.lang-item.active{color:rgba(30,62,92,1);font-weight:500}
+.lang-item .flag{font-size:13px}
+
+.nav-wrap{
+  position:absolute;top:38px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:0;height:44px;
+}
+.nav-a{
+  font-size:12px;font-weight:400;letter-spacing:.04em;
+  color:rgb(45,98,140);opacity:.4;text-decoration:none;
+  padding:0 18px;white-space:nowrap;cursor:pointer;
+  text-transform:uppercase;transition:opacity .25s ease;
+}
+.nav-a:hover{opacity:.75}
+.nav-a.on{opacity:1}
+.nav-ink{
+  position:absolute;left:0;bottom:-2px;
+  height:2px;width:0;background:rgb(45,98,140);
+  transition:left .4s cubic-bezier(.65,0,.35,1), width .4s cubic-bezier(.65,0,.35,1);
+}
+
+/* ============================================================
+   BLOCO DA MARCA — estilo MONTFORT (sem tagline)
+   ------------------------------------------------------------
+   Layout horizontal: [LOGO PNG] | [linha vertical] | [WOSS]
+
+   POSICIONAMENTO:
+   - left: clamp(40px,7vw,110px) → centro-esquerda
+   - top: 60% → vertical (você pediu 60%, não 50%)
+
+   CORES: tudo na mesma cor do "Scroll down to discover" e
+   "Powered by WOSS" do canto: rgb(30, 62, 92)
+   - WOSS: cor sólida
+   - Linha: gradient com fade nas pontas, mesma cor
+   - Logo: PNG já recolorido em rgb(30,62,92), embutido em base64
+
+   TIPOGRAFIA do WOSS: mesma do "Powered by WOSS"
+     Jost, peso 500, letter-spacing 0.18em
+   ============================================================ */
+.brand{
+  position: absolute;
+  left: clamp(40px, 7vw, 110px);    /* ⭐ posição horizontal */
+  top: 60%;                          /* ⭐ posição vertical */
+  transform: translateY(-50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* FOUT mitigation */
+.brand:not(.fonts-ready) .brand-name{visibility: hidden}
+.brand.fonts-ready .brand-name{visibility: visible; animation: fadeIn .4s ease both}
+@keyframes fadeIn{from{opacity: 0}to{opacity: 1}}
+
+/* LINHA HORIZONTAL: [logo] [separador] [nome] */
+.brand-row{
+  display: flex;
+  align-items: center;
+  gap: 12px;                         /* ⭐ espaço logo↔separador↔nome (era 22, reduzido) */
+}
+
+/* LOGO PNG (embutido em base64 com cor rgb(30,62,92) já aplicada) */
+.brand-icon{
+  width: clamp(56px, 6vw, 88px);     /* ⭐ tamanho do logo */
+  height: auto;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* SEPARADOR VERTICAL — linha fina com FADE nas pontas (mont-fort) */
+.brand-sep{
+  width: 1px;
+  height: clamp(48px, 5.5vw, 72px);  /* ⭐ altura do separador */
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(30, 62, 92, 0.55) 20%,      /* mesma cor do scroll/powered */
+    rgba(30, 62, 92, 0.55) 80%,
+    transparent 100%
+  );
+}
+
+/* NOME WOSS — MESMA tipografia do "Powered by WOSS" do canto inferior:
+   Jost, font-weight 500, letter-spacing 0.18em, color rgb(30, 62, 92) */
+.brand-name{
+  font-family: 'Jost', sans-serif;
+  font-weight: 500;                  /* ⭐ era 200, agora 500 igual Powered by WOSS */
+  font-size: clamp(34px, 4vw, 56px); /* ⭐ tamanho */
+  letter-spacing: 0.18em;            /* ⭐ era 0.45em, agora 0.18em igual Powered by WOSS */
+  color: rgb(30, 62, 92);            /* ⭐ MESMA COR do "Scroll down" e "Powered by" */
+  text-transform: uppercase;
+  line-height: 1;
+  margin: 0;
+}
+
+@media(max-width: 900px){
+  .brand{
+    left: clamp(20px, 6vw, 40px);
+  }
+  .brand-row{ gap: 10px; }
+  .brand-name{ letter-spacing: 0.14em; }
+}
+
+.scroll-cue{
+  position:absolute;
+  right:clamp(30px,5vw,70px);   /* ⭐ era 'left' — agora ancora à direita igual ao ex-Powered by WOSS */
+  bottom:80px;z-index:10;
+  font-size:13px;font-weight:500;letter-spacing:.18em;
+  color:rgb(30,62,92);text-transform:uppercase;
+  pointer-events:none;transition:opacity .5s ease;
+  display:flex;flex-direction:row;gap:14px;align-items:center;
+}
+.scroll-cue::after{
+  content:"";width:1px;height:32px;
+  background:linear-gradient(to bottom, rgba(30,62,92,.9), rgba(30,62,92,0));
+  animation:scrollCueLine 1.8s ease-in-out infinite;
+  transform-origin:top;
+}
+@keyframes scrollCueLine{
+  0%   { transform:scaleY(0);   opacity:0;   }
+  40%  { transform:scaleY(1);   opacity:1;   }
+  80%  { transform:scaleY(1);   opacity:0.2; }
+  100% { transform:scaleY(0);   opacity:0;   }
+}
+/* body.scrolled .scroll-cue{opacity:0}  ← removido: agora o JS (applyScrollProgress) controla a opacidade */
+
+#loading{
+  position:fixed;inset:0;background:#e6ecf2;z-index:5000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:22px;transition:opacity .7s ease;
+}
+.ld-name{
+  font-family:'Montserrat', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-weight:100;font-size:clamp(32px,5vw,64px);letter-spacing:.28em;
+  color:rgb(45,98,140);visibility:hidden;
+}
+html.fonts-ready .ld-name{visibility:visible}
+.ld-bar-wrap{width:180px;height:1px;background:rgba(45,98,140,.15)}
+.ld-bar{height:100%;width:0;background:rgba(45,98,140,.8);transition:width .2s}
+.ld-pct{font-family:'Montserrat',sans-serif;font-size:10px;letter-spacing:.22em;color:rgba(45,98,140,.5)}
+#loading.hidden{opacity:0;pointer-events:none}
+
+@media(max-width:900px){
+  .nav-wrap{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="ld-name">SPHERA</div>
+  <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
+  <div class="ld-pct" id="ld-pct">0%</div>
+</div>
+
+<div id="hero">
+  <div id="sky-bg"></div>
+  <canvas id="three-canvas"></canvas>
+
+  <header id="header">
+    <div class="header-left"></div>
+    <nav class="nav-wrap" id="nav">
+      <a class="nav-a on" data-idx="0">SPHERA</a>
+      <a class="nav-a" data-idx="1">WOSS</a>
+      <a class="nav-a" data-idx="2">FLOW-ELEV System</a>
+      <a class="nav-a" data-idx="3">AI Powered Solutions</a>
+      <a class="nav-a" data-idx="4">Dr. Wallace Soares</a>
+      <div class="nav-ink" id="nav-ink"></div>
+    </nav>
+    <div class="header-right">
+      <div class="lang-switch" id="lang-switch">
+        <button class="lang-current" id="lang-current" aria-label="Language" aria-expanded="false">
+          <span class="flag" id="lang-flag">🇬🇧</span>
+          <span id="lang-code">EN</span>
+        </button>
+        <div class="lang-menu" role="menu">
+          <div class="lang-item active" data-lang="en" role="menuitem"><span class="flag">🇬🇧</span><span>English</span></div>
+          <div class="lang-item" data-lang="pt" role="menuitem"><span class="flag">🇧🇷</span><span>Português</span></div>
+          <div class="lang-item" data-lang="es" role="menuitem"><span class="flag">🇪🇸</span><span>Español</span></div>
+          <div class="lang-item" data-lang="fr" role="menuitem"><span class="flag">🇫🇷</span><span>Français</span></div>
+          <div class="lang-item" data-lang="ar" role="menuitem"><span class="flag">🇸🇦</span><span>العربية</span></div>
+          <div class="lang-item" data-lang="sv" role="menuitem"><span class="flag">🇸🇪</span><span>Svenska</span></div>
+        </div>
+      </div>
+      <div class="menu-word" data-i18n="menu">Menu</div>
+      <div class="menu-dots"><span></span><span></span></div>
+    </div>
+  </header>
+
+  <span class="scroll-cue">Scroll down to discover</span>
+
+</div>
+
+<main id="scroll-stage">
+  <section class="mf-story-section mf-brand-section">
+    <div class="brand">
+      <div class="brand-row">
+        <img class="brand-icon" src="./assets/woss_shield_clean_transparent.svg" alt="WOSS logo">
+        <div class="brand-sep"></div>
+        <h1 class="brand-name">WOSS</h1>
+      </div>
+    </div>
+  </section>
+
+  <section class="mf-story-section" data-phase="1">
+    <div class="mf-story-title-wrap">
+      <h2 class="mf-editorial-title" data-i18n="story1-title">
+        SPHERA is a particle-resolved<br>
+        physics simulation platform.
+      </h2>
+    </div>
+    <div class="mf-story-body-wrap">
+      <p class="mf-editorial-body" data-i18n="story1-body">
+        We simulate complex industrial systems through GPU-native
+        SPH and DEM solvers — built for research, engineering, and
+        production-grade decision making.
+      </p>
+    </div>
+  </section>
+
+  <section class="mf-story-section" data-phase="2">
+    <div class="mf-story-title-wrap">
+      <h2 class="mf-editorial-title" data-i18n="story2-title">
+        Physics resolved.<br>
+        At industrial scale.
+      </h2>
+    </div>
+    <div class="mf-story-body-wrap">
+      <p class="mf-editorial-body" data-i18n="story2-body">
+        From multiphase flow to granular dynamics, SPHERA resolves
+        what traditional CFD cannot — coupling fluid, particles,
+        and structures in a single consistent framework.
+      </p>
+    </div>
+  </section>
+</main>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+/* ============================================================
+   FONTES — sinaliza quando Jost (usada no brand WOSS) estiver
+   carregada para evitar FOUT no logotipo principal.
+   ============================================================ */
+function markFontsReady(){
+  const brand = document.querySelector('.brand');
+  if(brand) brand.classList.add('fonts-ready');
+}
+if(document.fonts && document.fonts.load){
+  Promise.all([
+    document.fonts.load('200 52px Jost'),
+    document.fonts.load('300 13px Jost'),
+  ]).then(markFontsReady).catch(markFontsReady);
+  setTimeout(markFontsReady, 2000);
+} else {
+  markFontsReady();
+}
+
+/* ============================================================
+   I18N — troca de idioma da nav e tagline.
+   Idiomas suportados: EN, PT, ES, FR, AR (RTL), SV.
+   ============================================================ */
+const i18n = {
+  en: {
+    nav: ['SPHERA', 'WOSS', 'FLOW-ELEV System', 'AI Powered Solutions', 'Dr. Wallace Soares'],
+    tagline: 'Understanding, Applied',
+    menu: 'Menu', flag: '🇬🇧', code: 'EN',
+  },
+  pt: {
+    nav: ['SPHERA', 'WOSS', 'FLOW-ELEV System', 'Soluções com IA', 'Dr. Wallace Soares'],
+    tagline: 'Understanding, Applied',
+    menu: 'Menu', flag: '🇧🇷', code: 'PT',
+  },
+  es: {
+    nav: ['SPHERA', 'WOSS', 'FLOW-ELEV System', 'Soluciones con IA', 'Dr. Wallace Soares'],
+    tagline: 'Understanding, Applied',
+    menu: 'Menú', flag: '🇪🇸', code: 'ES',
+  },
+  fr: {
+    nav: ['SPHERA', 'WOSS', 'FLOW-ELEV System', 'Solutions IA', 'Dr. Wallace Soares'],
+    tagline: 'Understanding, Applied',
+    menu: 'Menu', flag: '🇫🇷', code: 'FR',
+  },
+  ar: {
+    nav: ['SPHERA', 'WOSS', 'FLOW-ELEV System', 'حلول الذكاء الاصطناعي', 'د. والاس سواريز'],
+    tagline: 'Understanding, Applied',
+    menu: 'القائمة', flag: '🇸🇦', code: 'AR', rtl: true,
+  },
+  sv: {
+    nav: ['SPHERA', 'WOSS', 'FLOW-ELEV System', 'AI-drivna lösningar', 'Dr. Wallace Soares'],
+    tagline: 'Understanding, Applied',
+    menu: 'Meny', flag: '🇸🇪', code: 'SV',
+  },
+};
+
+function applyLanguage(lang){
+  const dict = i18n[lang] || i18n.en;
+  document.querySelectorAll('.nav-a').forEach((a, i) => {
+    if(dict.nav[i] !== undefined) a.textContent = dict.nav[i];
+  });
+  const tag = document.querySelector('[data-i18n="tagline"]');
+  if(tag) tag.innerHTML = dict.tagline;
+  const menuWord = document.querySelector('[data-i18n="menu"]');
+  if(menuWord) menuWord.textContent = dict.menu;
+  document.getElementById('lang-flag').textContent = dict.flag;
+  document.getElementById('lang-code').textContent = dict.code;
+  document.querySelectorAll('.lang-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.lang === lang);
+  });
+  document.documentElement.setAttribute('dir', dict.rtl ? 'rtl' : 'ltr');
+  document.documentElement.setAttribute('lang', lang);
+  try { localStorage.setItem('sphera-lang', lang); } catch(e){}
+  setTimeout(() => {
+    const active = document.querySelector('.nav-a.on');
+    if(active && typeof moveInkTo === 'function') moveInkTo(active);
+  }, 50);
+}
+
+const langSwitch = document.getElementById('lang-switch');
+const langCurrent = document.getElementById('lang-current');
+langCurrent.addEventListener('click', (e) => {
+  e.stopPropagation();
+  langSwitch.classList.toggle('open');
+  langCurrent.setAttribute('aria-expanded', langSwitch.classList.contains('open'));
+});
+document.addEventListener('click', () => {
+  langSwitch.classList.remove('open');
+  langCurrent.setAttribute('aria-expanded', 'false');
+});
+document.querySelectorAll('.lang-item').forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.stopPropagation();
+    applyLanguage(item.dataset.lang);
+    langSwitch.classList.remove('open');
+    langCurrent.setAttribute('aria-expanded', 'false');
+  });
+});
+
+let initialLang = 'en';
+try {
+  const saved = localStorage.getItem('sphera-lang');
+  if(saved && i18n[saved]) initialLang = saved;
+  else {
+    const browserLang = (navigator.language || 'en').slice(0, 2).toLowerCase();
+    if(i18n[browserLang]) initialLang = browserLang;
+  }
+} catch(e){}
+applyLanguage(initialLang);
+
+/* ============================================================
+   THREE.JS — RENDERER, CENA, CÂMERA, LUZES
+   ------------------------------------------------------------
+   PARÂMETROS PRINCIPAIS:
+     toneMappingExposure → brilho geral da cena
+     pixelRatio cap: 2   → evita render 4K em telas Retina (perf)
+     camera.fov: 22      → telephoto (achata profundidade)
+     camera.position     → posição inicial antes de qualquer scroll
+   ============================================================ */
+const canvas = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({
+  canvas, antialias:true, alpha:true, powerPreference:'high-performance'
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;            // ⭐ brilho global
+
+const scene = new THREE.Scene();
+scene.background = null;
+
+const camera = new THREE.PerspectiveCamera(22, 1, 0.1, 1200);
+camera.position.set(-10, 11.2, 32);   // = PAGES.sphera.cameraPos (frame inicial)
+
+/* LUZES — chave (sol) + sky (céu) + fill (preenchimento).
+   keyLight.intensity: força do "sol"
+   hemi.intensity: luz ambiente geral */
+const hemi = new THREE.HemisphereLight(0xffffff, 0xb5c0ca, 0.82);
+scene.add(hemi);
+const keyLight = new THREE.DirectionalLight(0xfff6e8, 0.38);
+keyLight.position.set(-32, 68, 44);
+scene.add(keyLight);
+const KEY_LIGHT_BASE = keyLight.intensity;       // ref para flicker no loop
+const skyLight = new THREE.DirectionalLight(0xcfe0f2, 0.44);
+skyLight.position.set(12, 58, 28);
+scene.add(skyLight);
+const fillLight = new THREE.DirectionalLight(0xd8e5f0, 0.24);
+fillLight.position.set(25, 10, 58);
+scene.add(fillLight);
+
+/* ============================================================
+   TEXTURA PROCEDURAL DE NUVEM (FBM noise)
+   ------------------------------------------------------------
+   Gera 4 variantes de canvas-textura via ruído fractal. Cada
+   sprite usa uma das variantes aleatoriamente para evitar
+   repetição visível.
+
+   PESADO no carregamento (~100ms para as 4 variantes 256x256).
+   BARATO em runtime — texturas ficam estáticas em GPU.
+
+   Para nuvem mais detalhada: aumentar size para 512.
+   Para reduzir tempo de carregamento: reduzir para 128.
+   ============================================================ */
+function makeCloudPuffTexture(size = 256, seed = 0){
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  const data = img.data;
+
+  const hash = (x, y) => {
+    const s = Math.sin((x + seed * 17.31) * 127.1 + (y - seed * 9.77) * 311.7) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  const smooth = t => t * t * (3 - 2 * t);
+  const vnoise = (x, y) => {
+    const xi = Math.floor(x), yi = Math.floor(y);
+    const xf = x - xi, yf = y - yi;
+    const a = hash(xi,     yi);
+    const b = hash(xi + 1, yi);
+    const c1 = hash(xi,     yi + 1);
+    const d = hash(xi + 1, yi + 1);
+    const u = smooth(xf), v = smooth(yf);
+    return (a * (1 - u) + b * u) * (1 - v) + (c1 * (1 - u) + d * u) * v;
+  };
+  const fbm = (x, y, octaves = 5) => {
+    let v = 0, amp = 0.5, freq = 1;
+    for(let i = 0; i < octaves; i++){
+      v += amp * vnoise(x * freq, y * freq);
+      freq *= 2.07;
+      amp *= 0.5;
+    }
+    return v;
+  };
+
+  const cx = size / 2, cy = size / 2;
+  const maxR = size / 2;
+  const lowFreq   = 0.012 + (seed % 3) * 0.004;
+  const edgeFreq  = 0.085 + (seed % 4) * 0.012;
+  const innerFreq = 0.045 + (seed % 5) * 0.007;
+  const anchorX = cx + (hash(seed, seed * 2) - 0.5) * size * 0.18;
+  const anchorY = cy + (hash(seed * 3, seed) - 0.5) * size * 0.10;
+
+  for(let y = 0; y < size; y++){
+    for(let x = 0; x < size; x++){
+      const dx = (x - anchorX) / (maxR * 1.0);
+      const dy = (y - anchorY) / (maxR * 0.72);
+      const r = Math.sqrt(dx * dx + dy * dy);
+      const radial = 1.0 - smooth(Math.min(1, r / 1.05));
+      const shape = fbm(x * lowFreq + seed * 31.7, y * lowFreq - seed * 19.3, 5);
+      const edge = fbm(x * edgeFreq + seed * 73.1, y * edgeFreq + seed * 41.9, 4);
+
+      let mask = shape * 1.65 - 0.45;
+      mask *= radial;
+      mask -= (1.0 - radial) * edge * 0.65;
+      mask = Math.max(0, Math.min(1, mask));
+
+      const vGrad = smooth(Math.min(1, Math.max(0, (y / size) * 1.15 + 0.05)));
+      mask *= (0.65 + vGrad * 0.55);
+      mask = Math.min(1, mask);
+
+      const inner = 0.62 + fbm(x * innerFreq + seed * 11.1, y * innerFreq - seed * 7.7, 4) * 0.55;
+      const finalAlpha = Math.max(0, (mask - 0.04) / 0.96) * inner;
+
+      const i = (y * size + x) * 4;
+      const baseColor = 252 - (vGrad * 6);
+      data[i]     = baseColor;
+      data[i + 1] = baseColor + 1;
+      data[i + 2] = 255;
+      data[i + 3] = Math.round(255 * Math.min(1, finalAlpha));
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+const cloudTextureVariants = [
+  makeCloudPuffTexture(256, 1),
+  makeCloudPuffTexture(256, 2),
+  makeCloudPuffTexture(256, 3),
+  makeCloudPuffTexture(256, 4),
+];
+
+function makeCloudMaterial(texture, tintColor){
+  const mat = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    blending: THREE.NormalBlending,
+    depthWrite: false,
+    depthTest: true,
+    fog: false,
+    opacity: 1.0,
+  });
+  if(tintColor){
+    mat.color = tintColor.clone ? tintColor.clone() : new THREE.Color(tintColor);
+  }
+  return mat;
+}
+
+/* ============================================================
+   ESTADO GLOBAL DAS CAMADAS DE NUVENS
+   ------------------------------------------------------------
+   layers     → camadas horizontais de clusters (L1, L2, L4)
+   wispLayers → camadas verticais ascendentes (L3)
+   ============================================================ */
+const cloudState = {
+  layers: [],
+  wispLayers: [],
+};
+
+/* ============================================================
+   BUILDER: CAMADAS HORIZONTAIS DE CLUSTERS DE PUFFS
+   ------------------------------------------------------------
+   Usado por L1, L2 e L4. Cria N clusters; cada cluster tem
+   M puffs (sprites) ao redor do seu centro.
+
+   FLAGS DE PERFORMANCE no cfg:
+     cfg.static    → camada nunca atualiza no loop (CPU 0/frame)
+                     OBS: GPU continua desenhando todo frame.
+     cfg.lowMotion → cluster anima, mas puffs internos não
+                     (~80% mais barato que motion completo)
+
+   OTIMIZAÇÃO INTERNA: este builder evita criar campos de
+   animação que não serão usados. Ex.: se a camada é static,
+   NÃO criamos clusters[] no estado — o loop pula direto.
+   ============================================================ */
+function buildCloudLayer(parentMountain, cfg){
+  const yawCancel = new THREE.Group();
+  yawCancel.name = `cloud-yaw-cancel-${cfg.name}`;
+  parentMountain.add(yawCancel);
+
+  const layerGroup = new THREE.Group();
+  layerGroup.name = cfg.name;
+  yawCancel.add(layerGroup);
+
+  // Define quais campos os puffs/clusters precisam armazenar
+  const needsPuffMotion    = !cfg.static && !cfg.lowMotion;
+  const needsClusterMotion = !cfg.static;
+
+  const clusters = [];
+  for(let c = 0; c < cfg.clusterCount; c++){
+    const cluster = new THREE.Group();
+
+    const baseX = -cfg.span + (c / Math.max(1, cfg.clusterCount - 1)) * (cfg.span * 2)
+                  + (Math.random() - 0.5) * 10;
+    const baseY = cfg.bandY + (Math.random() - 0.5) * cfg.bandYJitter;
+    const baseZ = cfg.bandZOffset + (Math.random() - 0.5) * cfg.bandZRange;
+    cluster.position.set(baseX, baseY, baseZ);
+
+    const puffCount = cfg.puffCountMin
+      + Math.floor(Math.random() * (cfg.puffCountMax - cfg.puffCountMin + 1));
+    const puffs = [];
+    for(let p = 0; p < puffCount; p++){
+      const tex = cloudTextureVariants[Math.floor(Math.random() * cloudTextureVariants.length)];
+      const mat = makeCloudMaterial(tex, cfg.tint);
+      mat.rotation = (Math.random() - 0.5) * 0.6;
+
+      const sprite = new THREE.Sprite(mat);
+      sprite.renderOrder = cfg.renderOrder;
+
+      const lx = (Math.random() - 0.5) * cfg.localXSpread;
+      const ly = (Math.random() - 0.5) * cfg.localYSpread;
+      const lz = (Math.random() - 0.5) * cfg.localZSpread;
+      sprite.position.set(lx, ly, lz);
+
+      const sx = cfg.scaleBase + Math.random() * cfg.scaleRand;
+      const sy = sx * (cfg.scaleAspectMin + Math.random() * cfg.scaleAspectRand);
+      sprite.scale.set(sx, sy, 1);
+
+      mat.opacity = cfg.opacityBase + Math.random() * cfg.opacityRand;
+
+      cluster.add(sprite);
+
+      // Só guarda dados de animação se a camada vai animar puffs
+      if(needsPuffMotion){
+        puffs.push({
+          sprite,
+          basePosY: sprite.position.y,
+          bobPhase: Math.random() * Math.PI * 2,
+          bobSpeed: cfg.bobSpeedBase + Math.random() * cfg.bobSpeedRand,
+        });
+      }
+    }
+
+    layerGroup.add(cluster);
+
+    // Só guarda dados do cluster se a camada vai animar
+    if(needsClusterMotion){
+      clusters.push({
+        group: cluster,
+        baseY,
+        driftSpeed: cfg.driftSpeedBase + Math.random() * cfg.driftSpeedRand,
+        driftPhaseY: Math.random() * Math.PI * 2,
+        driftPhaseYSpeed: cfg.driftPhaseYSpeedBase + Math.random() * cfg.driftPhaseYSpeedRand,
+        bobAmp: cfg.bobAmp,
+        yBobAmp: cfg.yBobAmp,
+        wrapMin: -cfg.span,
+        wrapMax:  cfg.span,
+        puffs,
+      });
+    }
+  }
+
+  // Otimização para camadas estáticas: congela matrizes uma vez
+  // no build. Three.js para de recalcular world matrix dos sprites.
+  // GPU continua desenhando, mas CPU economiza muito em traversal.
+  if(cfg.static){
+    layerGroup.updateMatrixWorld(true);
+    layerGroup.matrixAutoUpdate = false;
+    layerGroup.traverse(o => { o.matrixAutoUpdate = false; });
+  }
+
+  cloudState.layers.push({
+    yawCancel,
+    group: layerGroup,
+    clusters,
+    isStatic: !!cfg.static,
+    isLowMotion: !!cfg.lowMotion,
+  });
+}
+
+/* ============================================================
+   BUILDER: CAMADA DE WISPS (vapor vertical ascendente)
+   ------------------------------------------------------------
+   Cada wisp é um sprite alto e estreito que nasce na base e
+   sobe lentamente, com fade-in/fade-out conforme ciclo de vida.
+   Ao morrer, respawna em posição aleatória.
+   ============================================================ */
+function buildWispLayer(parentMountain, cfg){
+  const yawCancel = new THREE.Group();
+  yawCancel.name = `wisp-yaw-cancel-${cfg.name}`;
+  parentMountain.add(yawCancel);
+
+  const layerGroup = new THREE.Group();
+  layerGroup.name = cfg.name;
+  yawCancel.add(layerGroup);
+
+  const wisps = [];
+  for(let i = 0; i < cfg.wispCount; i++){
+    const tex = cloudTextureVariants[Math.floor(Math.random() * cloudTextureVariants.length)];
+    const mat = makeCloudMaterial(tex, cfg.tint);
+    mat.rotation = (Math.random() - 0.5) * 0.25;
+
+    const sprite = new THREE.Sprite(mat);
+    sprite.renderOrder = cfg.renderOrder;
+
+    const sx = cfg.widthBase + Math.random() * cfg.widthRand;
+    const sy = sx * (cfg.heightAspectMin + Math.random() * cfg.heightAspectRand);
+    sprite.scale.set(sx, sy, 1);
+    layerGroup.add(sprite);
+
+    const lifetime = cfg.lifeBase + Math.random() * cfg.lifeRand;
+    const life = Math.random() * lifetime;
+
+    wisps.push({
+      sprite, mat,
+      baseScaleX: sx, baseScaleY: sy,
+      spawnX: 0, spawnY: 0, spawnZ: 0,
+      riseSpeed: cfg.riseSpeedBase + Math.random() * cfg.riseSpeedRand,
+      swayAmp:   cfg.swayAmpBase   + Math.random() * cfg.swayAmpRand,
+      swaySpeed: cfg.swaySpeedBase + Math.random() * cfg.swaySpeedRand,
+      swayPhase: Math.random() * Math.PI * 2,
+      lifetime, life,
+      peakOpacity: cfg.opacityBase + Math.random() * cfg.opacityRand,
+    });
+
+    respawnWisp(wisps[wisps.length - 1], cfg);
+  }
+
+  cloudState.wispLayers.push({ yawCancel, group: layerGroup, wisps, cfg });
+}
+
+function respawnWisp(wisp, cfg){
+  wisp.spawnX = -cfg.span + Math.random() * (cfg.span * 2);
+  wisp.spawnY = cfg.bandY + (Math.random() - 0.5) * cfg.bandYJitter;
+  wisp.spawnZ = cfg.bandZOffset + (Math.random() - 0.5) * cfg.bandZRange;
+  wisp.life = 0;
+}
+
+/* ============================================================
+   ============================================================
+                  CONFIGURAÇÕES DAS CAMADAS
+   ============================================================
+   ============================================================
+   PALETA DIAGNÓSTICA (cada camada com cor única para debug):
+     L1 → branco       (0xffffff)
+     L2 → azul-claro   (0x6ec7ff)   COR DIAGNÓSTICA. Cor oficial da L2 → (0xc8d0d6)
+     L3 → verde        (0x4dd17a)   COR DIAGNÓSTICA
+     L4 → laranja      (0xff8c4a)   COR DIAGNÓSTICA. Cor oficial da L2 → (0xa8b0b8)
+
+   PALETA FINAL (trocar quando o look estiver definido):
+     L1 → branco       (0xffffff)
+     L2 → cinza        (0xc8d0d6)
+     L3 → branco       (0xffffff)
+     L4 → cinza        (0xa8b0b8)
+
+   ────────────────────────────────────────────────────────────
+   GUIA DE PARÂMETROS — CAMADAS HORIZONTAIS (L1, L2, L4)
+   ────────────────────────────────────────────────────────────
+   IDENTIDADE:
+     name            → string identificadora
+     tint            → cor da camada (THREE.Color)
+     renderOrder     → ordem de desenho (maior = na frente)
+
+   FLAGS DE PERFORMANCE:
+     static          → true: camada nunca atualiza (CPU zero/frame)
+     lowMotion       → true: cluster anima, puffs internos parados
+
+   POSIÇÃO E EXTENSÃO:
+     span            → largura horizontal (X de -span a +span)
+     bandY           → altura central da camada
+     bandYJitter     → variação aleatória vertical entre clusters
+     bandZOffset     → deslocamento em profundidade
+     bandZRange      → variação aleatória em profundidade
+
+   QUANTIDADE:
+     clusterCount    → número de clusters
+     puffCountMin/Max → número de sprites por cluster
+
+   FORMA DOS PUFFS:
+     localXSpread    → espalhamento horizontal dentro do cluster
+     localYSpread    → espalhamento vertical dentro do cluster
+     localZSpread    → espalhamento em profundidade no cluster
+     scaleBase       → tamanho base de cada sprite
+     scaleRand       → variação aleatória de tamanho
+     scaleAspectMin  → razão altura/largura mínima (achatamento)
+     scaleAspectRand → variação aleatória dessa razão
+
+   APARÊNCIA:
+     opacityBase     → opacidade base de cada sprite
+     opacityRand     → variação aleatória de opacidade
+
+   MOVIMENTO (só usado se a camada não for static):
+     driftSpeedBase/Rand        → velocidade do drift horizontal
+     driftPhaseYSpeedBase/Rand  → frequência do bobbing vertical do cluster
+     bobSpeedBase/Rand          → frequência do bob individual dos puffs
+     bobAmp                     → amplitude do bob dos puffs
+     yBobAmp                    → amplitude do bob vertical do cluster
+   ============================================================ */
+
+/* ============================================================
+   LAYER 1 — COBERTURA DA BASE (branco, lowMotion)
+   ------------------------------------------------------------
+   FUNÇÃO: cobre a base da montanha com nuvens densas. Trabalha
+   junto com o fade do shader da montanha para esconder a base.
+
+   OTIMIZAÇÃO APLICADA: reduzido de 800 para 250 clusters, com
+   puffs maiores (scaleBase 6.5 em vez de 4.0). Visualmente
+   quase idêntico, ~70% menos sprites para a GPU desenhar.
+
+   PARÂMETROS QUE VOCÊ MAIS VAI MEXER:
+     bandY        → altura da camada (combine com fade)
+     clusterCount → densidade da cobertura
+     opacityBase  → mais "branca" (alta) ou "translúcida" (baixa)
+     scaleBase    → tamanho dos puffs
+   ============================================================ */
+const LAYER1_CFG = {
+  name: 'cloud-layer-1',
+  renderOrder: 1,
+  tint: new THREE.Color(0xffffff),       // ⭐ COR (já é a final: branco)
+  lowMotion: true,                        // só cluster anima, puffs parados
+
+  // POSIÇÃO E EXTENSÃO
+  span: 22,                               // ⭐ largura horizontal
+  bandY: -2.0,                            // ⭐ altura da camada
+  bandYJitter: 1.0,                       // variação vertical
+  bandZOffset: 5,
+  bandZRange: 20,                         // ⭐ profundidade total
+
+  // QUANTIDADE
+  clusterCount: 300,                      // ⭐ era 800 — reduzido p/ perf
+
+  // FORMA
+  localXSpread: 2.0,
+  localYSpread: 2.0,
+  localZSpread: 2.2,
+  puffCountMin: 3, puffCountMax: 5,
+  scaleBase: 6.5, scaleRand: 5.0,         // ⭐ puffs maiores p/ compensar
+  scaleAspectMin: 0.45, scaleAspectRand: 0.30,
+
+  // APARÊNCIA
+  opacityBase: 0.42, opacityRand: 0.25,
+
+  // MOVIMENTO (puffs ignoram, lowMotion ativo)
+  driftSpeedBase: 0.55, driftSpeedRand: 0.45,
+  driftPhaseYSpeedBase: 0.05, driftPhaseYSpeedRand: 0.08,
+  bobAmp: 0,                              // não usado
+  yBobAmp: 0.25,
+};
+
+/* ============================================================
+   LAYER 1B — REFORÇO DA COBERTURA DA BASE
+   ------------------------------------------------------------
+   Segunda passada de L1: herda TODOS os parâmetros via spread
+   (...LAYER1_CFG) e permite override pontual abaixo.
+
+   COMO FUNCIONA:
+   - Os parâmetros geométricos (bandY, span, bandZOffset, etc.)
+     vêm automaticamente de L1 — se você mudar bandY em L1,
+     L1B acompanha sem precisar editar dois lugares.
+   - O Math.random() interno do builder gera puffs em posições
+     diferentes nesta segunda passada → overlap natural com L1
+     fecha buracos que uma camada sozinha deixaria.
+
+   COMO CALIBRAR (descomente as linhas que quiser sobrescrever):
+   - clusterCount → mais/menos densidade que L1
+   - opacityBase  → mais/menos opacidade que L1
+   - scaleBase    → puffs maiores/menores que L1
+   - bandY        → empilhar acima/abaixo de L1 em vez de no mesmo nível
+   - tint         → cor diferente (ex.: cinza levemente diferente)
+   ============================================================ */
+const LAYER1B_CFG = {
+  ...LAYER1_CFG,                          // ⭐ HERDA TUDO de L1
+
+  // OVERRIDES OBRIGATÓRIOS (não mexer)
+  name: 'cloud-layer-1b',                 // nome único do group Three.js
+  renderOrder: 1,                         // mesmo nível visual de L1
+
+  // ─────────────────────────────────────────────────────
+  // OVERRIDES OPCIONAIS — descomente para divergir de L1
+  // ─────────────────────────────────────────────────────
+
+  // clusterCount: 300,                   // ⭐ densidade (L1 = 300)
+  // opacityBase: 0.42,                   // ⭐ opacidade base (L1 = 0.42)
+  // opacityRand: 0.25,                   // variação de opacidade (L1 = 0.25)
+  // scaleBase: 6.5,                      // ⭐ tamanho dos puffs (L1 = 6.5)
+  // scaleRand: 5.0,                      // variação de tamanho (L1 = 5.0)
+  // bandY: -2.0,                         // altura (L1 = -2.0). Tente -1.7 para subir levemente.
+  // bandYJitter: 1.0,                    // dispersão vertical (L1 = 1.0)
+  // tint: new THREE.Color(0xf5f7fa),     // cor (L1 = 0xffffff branco puro)
+};
+
+/* ============================================================
+   LAYER 2 — NÉBLINA ATMOSFÉRICA INTERMEDIÁRIA
+   ------------------------------------------------------------
+   FUNÇÃO: névoa fina acima dos picos para dar atmosfera.
+   ÚNICA camada com motion completo (cluster + puffs animam).
+   Quantidade pequena (120) torna o custo aceitável.
+
+   PARÂMETROS QUE VOCÊ MAIS VAI MEXER:
+     tint        → cor (cinza, azul ou branco — define o "humor")
+     opacityBase → muito baixa (0.14) para ficar sutil
+     bandY       → altura (acima ou no nível dos picos)
+   ============================================================ */
+const LAYER2_CFG = {
+  name: 'cloud-layer-2',
+  renderOrder: 2,
+  tint: new THREE.Color(0xc8d0d6),       // ⭐ COR FINAL: cinza levemente azulado
+
+  // POSIÇÃO E EXTENSÃO
+  span: 24,
+  bandY: 0,                               // ⭐ altura no nível dos picos
+  bandYJitter: 1.6,
+  bandZOffset: 0,
+  bandZRange: 16,
+
+  // QUANTIDADE
+  clusterCount: 120,                      // motion completo, manter modesto
+
+  // FORMA
+  localXSpread: 12.0, localYSpread: 2.2, localZSpread: 2.6,
+  puffCountMin: 6, puffCountMax: 9,
+  scaleBase: 4.5, scaleRand: 4.0,
+  scaleAspectMin: 0.40, scaleAspectRand: 0.30,
+
+  // APARÊNCIA
+  opacityBase: 0.14, opacityRand: 0.12,   // ⭐ sutil
+
+  // MOVIMENTO
+  driftSpeedBase: 0.18, driftSpeedRand: 0.18,
+  driftPhaseYSpeedBase: 0.03, driftPhaseYSpeedRand: 0.05,
+  bobSpeedBase: 0.10, bobSpeedRand: 0.14,
+  bobAmp: 0.12,                           // amplitude do bob individual dos puffs
+  yBobAmp: 0.18,
+};
+
+/* ============================================================
+   LAYER 3 — WISPS VERTICAIS (vapor de gelo subindo)
+   ------------------------------------------------------------
+   FUNÇÃO: pequenos vapores verticais nascem na base e sobem,
+   com ciclo de vida (fade in / full / fade out / respawn).
+   Adiciona vida orgânica à cena. CUSTO BAIXO (60 sprites).
+
+   PARÂMETROS QUE VOCÊ MAIS VAI MEXER:
+     wispCount     → quantidade simultânea (mais = mais vida)
+     riseSpeedBase → velocidade de subida
+     lifeBase/Rand → duração de cada wisp
+     opacityBase   → visibilidade
+   ============================================================ */
+const LAYER3_CFG = {
+  name: 'cloud-layer-3-wisps',
+  renderOrder: 3,
+  tint: new THREE.Color(0x4dd17a),       // ⭐ VERDE — usuário quer manter
+
+  // BANDA DE NASCIMENTO
+  span: 22,
+  bandY: 2,                              // ⭐ altura inicial (base)
+  bandYJitter: 0.8,
+  bandZOffset: 0,
+  bandZRange: 14,
+
+  // QUANTIDADE
+  wispCount: 80,                          // ⭐ wisps simultâneos
+
+  // FORMA (estreito e alto)
+  widthBase: 2.0, widthRand: 2.0,
+  heightAspectMin: 3.6, heightAspectRand: 2.0, // altura é 3.6-5.6× a largura
+
+  // APARÊNCIA
+  opacityBase: 0.10, opacityRand: 0.10,   // ⭐ visibilidade
+
+  // MOVIMENTO
+  riseSpeedBase: 0.45, riseSpeedRand: 0.35, // ⭐ velocidade de subida
+  swayAmpBase: 0.25, swayAmpRand: 0.30,   // amplitude do balanço lateral
+  swaySpeedBase: 0.30, swaySpeedRand: 0.40,
+
+  // CICLO DE VIDA (segundos)
+  lifeBase: 9.0, lifeRand: 5.0,           // ⭐ duração total (9-14s)
+};
+
+/* ============================================================
+   LAYER 4 — BANCO DE NÉBLINA EM PROFUNDIDADE (estática)
+   ------------------------------------------------------------
+   FUNÇÃO: banco posicionado À FRENTE da montanha com profundidade
+   enorme em Z. Conforme a câmera dá zoom out no scroll, parece
+   que a câmera "atravessa" o banco — efeito de imersão.
+
+   OTIMIZAÇÃO APLICADA: reduzido de 400 para 150 clusters, puffs
+   maiores. CPU já era zero (static), o ganho é em GPU (menos
+   sprites para desenhar todo frame).
+
+   PARÂMETROS-CHAVE para o efeito de imersão (NÃO MEXER):
+     bandZOffset: 10  → empurra para frente da montanha
+     bandZRange: 100  → profundidade extrema em Z
+   Mexer nesses dois quebra o efeito principal da camada.
+
+   PARÂMETROS SEGUROS DE MEXER:
+     clusterCount → densidade
+     opacityBase  → visibilidade
+     bandY        → altura
+     scaleBase    → tamanho dos puffs
+   ============================================================ */
+const LAYER4_CFG = {
+  name: 'cloud-layer-4-foreground-bank',
+  renderOrder: 4,
+  tint: new THREE.Color(0xa8b0b8),       // ⭐ COR FINAL: cinza médio (mais escuro por estar distante)
+  static: true,                           // não atualiza no loop
+
+  // POSIÇÃO E EXTENSÃO
+  span: 26,
+  bandY: -8,                              // ⭐ altura (baixa, abaixo da montanha)
+  bandYJitter: 3.0,
+  bandZOffset: 10,                        // ⚠️ frente da montanha — não mexer
+  bandZRange: 100,                        // ⚠️ profundidade do efeito — não mexer
+
+  // QUANTIDADE
+  clusterCount: 300,                      // ⭐ era 400 — reduzido p/ perf
+
+  // FORMA
+  localXSpread: 10.0, localYSpread: 4.0, localZSpread: 3.0,
+  puffCountMin: 7, puffCountMax: 10,
+  scaleBase: 8.0, scaleRand: 6.0,         // ⭐ puffs grandes p/ compensar
+  scaleAspectMin: 0.55, scaleAspectRand: 0.35,
+
+  // APARÊNCIA
+  opacityBase: 0.30, opacityRand: 0.20,   // ⭐ visibilidade
+};
+
+/* ============================================================
+   LOADING MANAGER — alimenta a barra de progresso na tela inicial
+   ============================================================ */
+const ldBar = document.getElementById('ld-bar');
+const ldPct = document.getElementById('ld-pct');
+const manager = new THREE.LoadingManager(
+  () => setTimeout(() => document.getElementById('loading').classList.add('hidden'), 400),
+  (_, loaded, total) => {
+    const p = Math.round(loaded / Math.max(total,1) * 100);
+    ldBar.style.width = p + '%';
+    ldPct.textContent = p + '%';
+  }
+);
+
+/* ============================================================
+   SHADER DA MONTANHA — FALLBACK procedural (rocha + neve via FBM)
+   ------------------------------------------------------------
+   Só é usado se o GLB não carregar. O modelo real preserva
+   suas próprias texturas via onBeforeCompile (mais abaixo).
+   ============================================================ */
+const mountainUniforms = {
+  uLightDir: { value: new THREE.Vector3(-.35, .82, .38).normalize() },
+  uTime: { value: 0 },
+};
+
+function mountainMaterial(){
+  return new THREE.ShaderMaterial({
+    uniforms: mountainUniforms,
+    vertexShader: `
+      varying vec3 vNormalW;
+      varying vec3 vPosL;
+      void main(){
+        vNormalW = normalize(mat3(modelMatrix) * normal);
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vPosL = position;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uLightDir;
+      varying vec3 vNormalW;
+      varying vec3 vPosL;
+
+      float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+      float noise(vec3 p){
+        vec3 i=floor(p),f=fract(p);
+        float a=hash(i), b=hash(i+vec3(1,0,0)), c=hash(i+vec3(0,1,0)), d=hash(i+vec3(1,1,0));
+        float e=hash(i+vec3(0,0,1)), f2=hash(i+vec3(1,0,1)), g=hash(i+vec3(0,1,1)), h=hash(i+vec3(1,1,1));
+        vec3 u=f*f*(3.0-2.0*f);
+        return mix(mix(mix(a,b,u.x),mix(c,d,u.x),u.y), mix(mix(e,f2,u.x),mix(g,h,u.x),u.y), u.z);
+      }
+      float fbm(vec3 p){
+        float v=0.0, a=0.5;
+        for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.03; a*=0.5; }
+        return v;
+      }
+
+      void main(){
+        vec3 N = normalize(vNormalW);
+        float slope = 1.0 - abs(N.y);
+
+        float n1 = fbm(vPosL * 0.14);
+        float n2 = fbm(vPosL * 0.55);
+        float micro = fbm(vPosL * 2.6);
+
+        float altitude = smoothstep(-8.0, 10.0, vPosL.y + n1*3.5);
+        float snowLine = smoothstep(-0.05, 0.55, altitude - slope*0.35 + n1*0.22);
+        snowLine = clamp(snowLine, 0.0, 1.0);
+
+        vec3 rockDark  = vec3(0.30, 0.32, 0.36);
+        vec3 rockLight = vec3(0.56, 0.58, 0.62);
+        vec3 rock = mix(rockDark, rockLight, n1*0.85 + micro*0.20);
+        rock *= (0.85 + micro * 0.28);
+
+        vec3 snowShadow = vec3(0.76, 0.80, 0.86);
+        vec3 snowLit    = vec3(0.98, 0.99, 1.00);
+        vec3 snow = mix(snowShadow, snowLit, n2 * 0.75 + 0.25);
+
+        vec3 col = mix(rock, snow, snowLine);
+
+        float ndl = max(dot(N, uLightDir), 0.0);
+        col *= (0.58 + ndl * 0.62);
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+  });
+}
+
+/* ============================================================
+   CORTE DA BASE DA MONTANHA (vertex Y fade)
+   ------------------------------------------------------------
+   Faz a parte inferior do modelo desvanecer em alpha.
+   É o que esconde a base — sem precisar de fog/nuvens duras.
+
+   COORDENADAS em FRAÇÃO da altura do modelo (0..1):
+     0.0 = base do GLB
+     1.0 = topo do GLB
+
+   PARÂMETROS:
+     yCutLow  → abaixo disso, montanha 100% invisível
+     yCutHigh → acima disso, montanha 100% opaca
+     entre os dois → fade suave (smoothstep)
+
+   AJUSTE:
+     diferença pequena (0.05 → 0.10) → transição curta/dura
+     diferença grande  (0.05 → 0.40) → transição longa/suave
+   ============================================================ */
+const MOUNTAIN_FADE_CFG = {
+  yCutLow:  0.05,   // ⭐ 5% mais baixos: invisíveis
+  yCutHigh: 0.25,   // ⭐ 25% mais baixos: 100% opaco a partir daqui
+};
+
+// Calculados no load — Y real correspondente às frações acima
+let mountainModelMinY = 0;
+let mountainModelMaxY = 0;
+
+/* ============================================================
+   MONTANHA — POSICIONAMENTO INICIAL
+   ------------------------------------------------------------
+   Estes constantes controlam o framing inicial. Ajuste para
+   recompor a cena.
+   ============================================================ */
+let mountain;
+let mountainBaseY = 0;                          // ref para o scroll subir a partir dela
+
+const MOUNTAIN_TARGET_SIZE = 20;                // ⭐ tamanho normalizado (maior dim do bbox)
+const MOUNTAIN_FRAMING_POS = new THREE.Vector3(7, 10, 0);  // ⭐ posição inicial
+const MOUNTAIN_INITIAL_ROT_Y = 0.03;             // ⭐ ângulo inicial em torno de Y
+const MOUNTAIN_INITIAL_ROT_X = 0.;            // tilt sutil
+
+/* ============================================================
+   ============================================================
+   PAGES — DEFINIÇÃO DE CADA PÁGINA VIRTUAL DO SITE (SPA)
+   ============================================================
+   ============================================================
+   ARQUITETURA NOVA (pós-refatoração para closeup):
+   A montanha (GLB com 4 picos) fica PARADA. A câmera é que
+   viaja entre as páginas — voa até o pico desejado e mira
+   nele em closeup.
+
+   ESTRUTURA DE CADA PÁGINA:
+     cameraPos    → posição da câmera (x, y, z) em world space
+     cameraLookAt → ponto que a câmera mira (x, y, z) em world space
+
+   A página 'sphera' é a vista panorâmica padrão (mostra os 4 picos).
+   As outras dão closeup em UM pico específico.
+
+   ⭐ TODOS OS VALORES SÃO CALIBRÁVEIS após descobrir onde
+   cada pico está no espaço 3D.
+
+   COMO CALIBRAR (instruções detalhadas no console):
+     1. Carregue o site na página 'sphera'
+     2. Abra o console (F12)
+     3. Use os comandos que estão documentados no chat
+        para identificar o world-space de cada pico
+     4. Substitua os valores chutados abaixo
+   ============================================================ */
+const PAGES = {
+  sphera: {
+    // ⭐ Vista panorâmica — posição calibrada como "bonita" (= ex-scroll-30%)
+    cameraPos:    { x: -10, y: 9.2,  z: 40 },
+    cameraLookAt: { x: 18,  y: 8.5,  z: -18 },
+  },
+  woss: {
+    // ⭐ CLOSEUP no Pico_1 (FRENTE-ESQUERDA) — world: (2.07, 11.27, 5.23)
+    cameraPos:    { x: 2.07, y: 11,    z: 21 },
+    cameraLookAt: { x: 2.07, y: 11.27, z: 5.23 },
+  },
+  flowelev: {
+    // ⭐ CLOSEUP no Pico_3 (FRENTE-DIREITA) — world: (12.19, 11.28, 4.90)
+    cameraPos:    { x: 12.19, y: 11,    z: 21 },
+    cameraLookAt: { x: 12.19, y: 11.28, z: 4.90 },
+  },
+  ai: {
+    // ⭐ CLOSEUP no Pico_5 (ATRÁS-DIREITA) — world: (11.92, 11.41, -5.23)
+    cameraPos:    { x: 18,    y: 11,    z: 8 },
+    cameraLookAt: { x: 11.92, y: 11.41, z: -5.23 },
+  },
+  wallace: {
+    // ⭐ CLOSEUP no Pico_4 (ATRÁS-ESQUERDA) — world: (1.78, 11.18, -4.91)
+    cameraPos:    { x: -5,    y: 11,    z: 8 },
+    cameraLookAt: { x: 1.78,  y: 11.18, z: -4.91 },
+  },
+};
+
+// Mapeia índice da nav → nome da página (mesma ordem dos data-idx no HTML)
+const PAGE_NAMES = ['sphera', 'woss', 'flowelev', 'ai', 'wallace'];
+
+/* ============================================================
+   SISTEMA DE TRANSIÇÃO ENTRE PÁGINAS
+   ------------------------------------------------------------
+   Anima a montanha de uma página para outra usando easeOutCubic.
+
+   PROTEÇÕES:
+   - Flag isTransitioning bloqueia novas transições durante uma
+     em curso (evita acúmulo se o usuário clica rápido).
+   - Função applyScrollProgress() respeita a flag e não mexe
+     na montanha enquanto a transição roda — evita conflito.
+
+   ⭐ TRANSITION_DURATION é calibrável.
+   ============================================================ */
+let currentPage = 'sphera';
+let isTransitioning = false;
+
+// Estado atual da câmera. A montanha não se move mais entre
+// páginas — só a câmera. Esses valores são interpolados durante
+// a transição e usados todo frame no loop animate().
+const currentCameraPos = {
+  x: PAGES.sphera.cameraPos.x,
+  y: PAGES.sphera.cameraPos.y,
+  z: PAGES.sphera.cameraPos.z,
+};
+const currentLookAt = {
+  x: PAGES.sphera.cameraLookAt.x,
+  y: PAGES.sphera.cameraLookAt.y,
+  z: PAGES.sphera.cameraLookAt.z,
+};
+
+const TRANSITION_DURATION = 1200;   // ⭐ duração em ms (1200 = média cinematográfica)
+
+function goToPage(targetPage){
+  if(isTransitioning) return;
+  if(targetPage === currentPage) return;
+  if(!PAGES[targetPage]) {
+    console.warn('[SPHERA] Página desconhecida:', targetPage);
+    return;
+  }
+  // Não precisa mais checar mountain — só mexemos na câmera
+
+  // Captura estado atual (origem da interpolação)
+  const fromCam = {
+    x: currentCameraPos.x,
+    y: currentCameraPos.y,
+    z: currentCameraPos.z,
+  };
+  const fromLook = {
+    x: currentLookAt.x,
+    y: currentLookAt.y,
+    z: currentLookAt.z,
+  };
+  const to = PAGES[targetPage];
+
+  isTransitioning = true;
+  const startTime = performance.now();
+
+  function tick(now){
+    const elapsed = now - startTime;
+    const t = Math.min(1, elapsed / TRANSITION_DURATION);
+    const eased = 1 - Math.pow(1 - t, 3);   // easeOutCubic
+
+    // ⭐ INTERPOLAÇÃO DA POSIÇÃO DA CÂMERA
+    currentCameraPos.x = fromCam.x + (to.cameraPos.x - fromCam.x) * eased;
+    currentCameraPos.y = fromCam.y + (to.cameraPos.y - fromCam.y) * eased;
+    currentCameraPos.z = fromCam.z + (to.cameraPos.z - fromCam.z) * eased;
+
+    // ⭐ INTERPOLAÇÃO DO LOOKAT
+    currentLookAt.x = fromLook.x + (to.cameraLookAt.x - fromLook.x) * eased;
+    currentLookAt.y = fromLook.y + (to.cameraLookAt.y - fromLook.y) * eased;
+    currentLookAt.z = fromLook.z + (to.cameraLookAt.z - fromLook.z) * eased;
+
+    if(t < 1){
+      requestAnimationFrame(tick);
+    } else {
+      currentPage = targetPage;
+      isTransitioning = false;
+      // Atualiza URL via hash routing (compatível com qualquer servidor,
+      // inclusive Live Server. /#woss em vez de /woss).
+      // hashSuppress evita que o hashchange listener dispare goToPage
+      // de novo em loop (já estamos no destino).
+      hashSuppress = true;
+      try { location.hash = targetPage; } catch(e){}
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// Suporte a botão voltar/avançar do navegador via HASH ROUTING.
+// Usamos location.hash (#woss) em vez de pushState (/woss) para
+// que funcione em qualquer servidor — inclusive Live Server, que
+// não sabe rotear URLs virtuais.
+//
+// hashSuppress: flag que evita loop infinito. Quando goToPage()
+// termina e atualiza location.hash, o hashchange listener dispara,
+// mas como hashSuppress está true, ele não chama goToPage de novo.
+let hashSuppress = false;
+
+window.addEventListener('hashchange', () => {
+  if(hashSuppress){
+    hashSuppress = false;
+    return;
+  }
+  const page = (location.hash || '').replace('#', '') || 'sphera';
+  const idx = PAGE_NAMES.indexOf(page);
+  if(idx >= 0){
+    goToPage(page);
+    if(typeof setActive === 'function') setActive(idx);
+  }
+});
+
+// Lê o hash inicial — permite que o usuário abra direto em /#woss
+// e o site comece já naquela página. Roda depois que tudo carrega.
+window.addEventListener('load', () => {
+  const initialHash = (location.hash || '').replace('#', '');
+  if(initialHash && PAGE_NAMES.includes(initialHash) && initialHash !== 'sphera'){
+    // Pequeno delay para garantir que o GLB já carregou
+    setTimeout(() => {
+      const idx = PAGE_NAMES.indexOf(initialHash);
+      goToPage(initialHash);
+      if(typeof setActive === 'function') setActive(idx);
+    }, 800);
+  }
+});
+
+/* ============================================================
+   APLICA FADE DE BASE EM TODOS OS MATERIAIS DO MODELO
+   ------------------------------------------------------------
+   Usa onBeforeCompile para INJETAR o fade no shader gerado
+   pelo Three.js — preserva texturas, iluminação, tudo.
+
+   O corte é feito em Y LOCAL do mesh (position.y do vertex),
+   então acompanha o modelo: se a montanha subir/girar/escalar,
+   a região cortada continua sendo a mesma parte do GLB.
+   ============================================================ */
+function applyMountainFade(rootObject, modelMinY, modelMaxY){
+  const range = modelMaxY - modelMinY;
+  const yLow  = modelMinY + range * MOUNTAIN_FADE_CFG.yCutLow;
+  const yHigh = modelMinY + range * MOUNTAIN_FADE_CFG.yCutHigh;
+
+  rootObject.traverse(o => {
+    if(!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+
+    mats.forEach(mat => {
+      // CONFIGURAÇÃO ANTI-Z-FIGHTING:
+      // - transparent: false + alphaTest: pixels com alpha < threshold
+      //   são DESCARTADOS, não blendados. Isso preserva o depth buffer
+      //   e evita os "buracos" que apareciam em closeup (back-faces
+      //   sendo desenhadas por cima das front-faces).
+      // - depthWrite: true (default) — montanha continua sólida.
+      //
+      // O fade da base ainda funciona porque o shader reduz o alpha
+      // gradualmente. Pixels totalmente transparentes (alpha=0) são
+      // descartados via alphaTest. A transição é menos suave que com
+      // blending, mas em troca a montanha fica sólida em qualquer ângulo.
+      mat.transparent = false;
+      mat.alphaTest = 0.5;
+      mat.depthWrite = true;
+      mat.side = THREE.FrontSide;     // só face frontal — back-faces invisíveis
+
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.uYCutLow  = { value: yLow };
+        shader.uniforms.uYCutHigh = { value: yHigh };
+
+        shader.vertexShader = shader.vertexShader
+          .replace(
+            '#include <common>',
+            `#include <common>
+             varying float vLocalY;`
+          )
+          .replace(
+            '#include <begin_vertex>',
+            `#include <begin_vertex>
+             vLocalY = position.y;`
+          );
+
+        shader.fragmentShader = shader.fragmentShader
+          .replace(
+            '#include <common>',
+            `#include <common>
+             uniform float uYCutLow;
+             uniform float uYCutHigh;
+             varying float vLocalY;`
+          )
+          .replace(
+            '#include <output_fragment>',
+            `float fadeMask = smoothstep(uYCutLow, uYCutHigh, vLocalY);
+             #include <output_fragment>
+             gl_FragColor.a *= fadeMask;`
+          );
+
+        mat.userData.fadeShader = shader;
+      };
+
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+/* ============================================================
+   NORMALIZA O GLB CARREGADO
+   ------------------------------------------------------------
+   Centraliza, escala para MOUNTAIN_TARGET_SIZE, posiciona no
+   framing inicial. Retorna o grupo wrapper.
+   ============================================================ */
+function normalizeMountain(obj){
+  obj.position.set(0, 0, 0);
+  obj.rotation.set(0, 0, 0);
+  obj.scale.set(1, 1, 1);
+  obj.updateMatrixWorld(true);
+
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const scale = MOUNTAIN_TARGET_SIZE / maxDim;
+
+  obj.scale.setScalar(scale);
+
+  const group = new THREE.Group();
+  obj.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+  group.add(obj);
+
+  group.position.copy(MOUNTAIN_FRAMING_POS);
+  group.rotation.x = MOUNTAIN_INITIAL_ROT_X;
+  group.rotation.y = MOUNTAIN_INITIAL_ROT_Y;
+
+  obj.traverse(o => { if(o.isMesh) o.renderOrder = 0; });
+
+  return { group, appliedScale: scale };
+}
+
+/* ============================================================
+   FALLBACK PROCEDURAL — usado se o GLB não carregar
+   ============================================================ */
+function buildFallbackMountain(){
+  const geo = new THREE.PlaneGeometry(40, 28, 180, 128);
+  const pos = geo.attributes.position;
+  for(let i=0; i<pos.count; i++){
+    const x = pos.getX(i), y = pos.getY(i);
+    const nx = x/20, ny = y/14;
+    const radial = Math.max(0, 1 - Math.sqrt(nx*nx*.9 + ny*ny*.9));
+    const ridge = Math.exp(-Math.abs(nx*.9 + ny*.15) * 1.8);
+    const rough = (Math.sin(x*.65) + Math.sin(y*.82 + x*.22) + Math.sin((x-y)*.35))*.9;
+    pos.setZ(i, radial*radial*18 + ridge*8 + rough*radial*.7);
+  }
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, mountainMaterial());
+  mesh.rotation.x = -Math.PI/2.6;
+  mesh.rotation.y = 0.18;
+  mesh.position.set(28, -6, -18);
+  mesh.renderOrder = 0;
+
+  const group = new THREE.Group();
+  group.add(mesh);
+  mountain = group;
+  mountainBaseY = group.position.y;
+
+  const localBox = new THREE.Box3().setFromObject(mesh);
+  mountainModelMinY = localBox.min.y;
+  mountainModelMaxY = localBox.max.y;
+  applyMountainFade(group, mountainModelMinY, mountainModelMaxY);
+
+  scene.add(mountain);
+  buildAllClouds(mountain);
+}
+
+/* ============================================================
+   BUILDER MASTER: monta todas as camadas de nuvens
+   ------------------------------------------------------------
+   Ordem: L1 (base) → L1B (reforço) → L2 (atmosférica) → L3 (wisps) → L4 (frente)
+   ============================================================ */
+function buildAllClouds(mountainGroup){
+  buildCloudLayer(mountainGroup, LAYER1_CFG);
+  buildCloudLayer(mountainGroup, LAYER1B_CFG);   // ⭐ reforço da cobertura da base
+  buildCloudLayer(mountainGroup, LAYER2_CFG);
+  buildWispLayer(mountainGroup,  LAYER3_CFG);
+  buildCloudLayer(mountainGroup, LAYER4_CFG);
+}
+
+/* ============================================================
+   CARREGAMENTO DO GLB
+   ============================================================ */
+const draco = new DRACOLoader();
+draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/libs/draco/');
+const loader = new GLTFLoader(manager);
+loader.setDRACOLoader(draco);
+
+loader.load(
+  './assets/models/snow_mountain_pack_world_machine_type1.glb',
+  (g) => {
+    const { group } = normalizeMountain(g.scene);
+    mountain = group;
+
+    // Calcula Y range do modelo no espaço local dos vértices.
+    // Necessário para o fade saber onde é "base" e "topo".
+    let minY = Infinity, maxY = -Infinity;
+    group.children[0].traverse(o => {
+      if(!o.isMesh || !o.geometry) return;
+      const pos = o.geometry.attributes.position;
+      for(let i = 0; i < pos.count; i++){
+        const y = pos.getY(i);
+        if(y < minY) minY = y;
+        if(y > maxY) maxY = y;
+      }
+    });
+    mountainModelMinY = minY;
+    mountainModelMaxY = maxY;
+    console.log('[SPHERA] Modelo Y range:', minY.toFixed(2), '→', maxY.toFixed(2));
+
+    /* ============================================================
+       LOG AUTOMÁTICO DOS PICOS (auxílio à calibração de páginas)
+       ------------------------------------------------------------
+       Para cada mesh do GLB, calcula o BOUNDING BOX e usa o
+       CENTRO-DO-TOPO como ponto de referência do "pico". Isso é
+       mais confiável que pegar o vértice de Y máximo, que pode
+       cair em vários lugares dependendo de como o GLB foi feito.
+       ============================================================ */
+    const peaks = [];
+    group.children[0].traverse(o => {
+      if(!o.isMesh || !o.geometry) return;
+      // Garante que a matriz mundial está atualizada
+      o.updateWorldMatrix(true, false);
+
+      // Bounding box em WORLD SPACE (não local!)
+      const box = new THREE.Box3().setFromObject(o);
+      const center = box.getCenter(new THREE.Vector3());
+      // Topo do bounding box (Y máximo, X e Z no centro)
+      const topX = center.x;
+      const topY = box.max.y;
+      const topZ = center.z;
+
+      peaks.push({
+        mesh: o.name || 'unnamed',
+        worldX: topX.toFixed(2),
+        worldY: topY.toFixed(2),
+        worldZ: topZ.toFixed(2),
+      });
+    });
+    console.log('[SPHERA] Picos detectados (topo do bounding box, world space):');
+    console.table(peaks);
+
+    /* ============================================================
+       MARCADORES VISUAIS DE DEBUG
+       ------------------------------------------------------------
+       Adiciona uma esfera VERMELHA no ponto que a câmera está
+       mirando (cameraLookAt), e esferas AZUIS em cada pico
+       detectado. Permite ver se o lookAt está acertando o pico.
+
+       Para DESLIGAR depois de calibrar: comente o bloco inteiro
+       ou mude DEBUG_MARKERS para false.
+       ============================================================ */
+    const DEBUG_MARKERS = false;    // ⭐ true para ligar bolinhas de debug
+    if(DEBUG_MARKERS){
+      // Esfera vermelha BEM GRANDE no ponto que a câmera está mirando
+      const targetGeo = new THREE.SphereGeometry(1.2, 16, 16);
+      const targetMat = new THREE.MeshBasicMaterial({color: 0xff0000});
+      const targetMarker = new THREE.Mesh(targetGeo, targetMat);
+      targetMarker.renderOrder = 9999;
+      targetMarker.material.depthTest = false;
+      targetMarker.material.depthWrite = false;
+      targetMarker.material.transparent = true;
+      scene.add(targetMarker);
+      window._targetMarker = targetMarker;
+
+      // Esferas azuis BEM GRANDES em cada pico (topo do bounding box)
+      peaks.forEach((p, i) => {
+        const peakGeo = new THREE.SphereGeometry(1.0, 12, 12);
+        const peakMat = new THREE.MeshBasicMaterial({color: 0x0088ff});
+        const peakMarker = new THREE.Mesh(peakGeo, peakMat);
+        peakMarker.position.set(parseFloat(p.worldX), parseFloat(p.worldY), parseFloat(p.worldZ));
+        peakMarker.renderOrder = 9999;
+        peakMarker.material.depthTest = false;
+        peakMarker.material.depthWrite = false;
+        peakMarker.material.transparent = true;
+        scene.add(peakMarker);
+        console.log(`[SPHERA] Pico ${i} (azul): X=${p.worldX} Y=${p.worldY} Z=${p.worldZ}`);
+      });
+
+      console.log('[SPHERA] DEBUG: vermelha GRANDE = câmera olha. AZUIS GRANDES = picos.');
+      console.log('[SPHERA] As bolinhas ignoram depth test — sempre visíveis na frente.');
+    }
+
+    /* ============================================================
+       KIT DE CALIBRAÇÃO NO CONSOLE
+       ------------------------------------------------------------
+       Helpers para ajustar a câmera da página atual em tempo real,
+       sem precisar recarregar. Quando estiver satisfeito, copie
+       os valores impressos e cole no PAGES da página atual.
+
+       FUNÇÕES DISPONÍVEIS:
+         peaks()            → mostra a tabela dos 4 picos
+         orbit(idx, dist, height, angle, tilt)
+                            → posiciona câmera orbitando um pico
+         closer(amount)     → aproxima câmera (negativo = afasta)
+         higher(amount)     → sobe câmera (negativo = desce)
+         spin(degrees)      → gira câmera em torno do alvo
+         tiltUp(degrees)    → inclina câmera pra cima/baixo
+         dump()             → imprime cameraPos/cameraLookAt atuais
+                              prontos para colar no PAGES
+       ============================================================ */
+    window.peaks = () => {
+      console.table(peaks);
+      return peaks;
+    };
+
+    /* orbit(idx, dist, height, angle, tilt)
+       idx    : índice do pico (0-3)
+       dist   : distância da câmera ao pico em unidades 3D (default 8)
+       height : altura da câmera ACIMA do pico (default 2)
+       angle  : ângulo horizontal em torno do pico, em GRAUS
+                0 = à frente (Z+), 90 = à direita (X+),
+                180 = atrás (Z-), 270 = à esquerda (X-)
+       tilt   : 0 = câmera olha para o pico direto.
+                Positivo = mira mais alto (acima do pico).
+                Negativo = mira mais baixo (na base). */
+    window.orbit = (idx, dist = 8, height = 2, angle = 0, tilt = 0) => {
+      const p = peaks[idx];
+      if(!p) { console.warn('Pico não existe. Use 0-3.'); return; }
+      const px = parseFloat(p.worldX);
+      const py = parseFloat(p.worldY);
+      const pz = parseFloat(p.worldZ);
+
+      // Converte ângulo para radianos. 0° = câmera no Z+, 90° = X+, etc.
+      const rad = angle * Math.PI / 180;
+      const camX = px + Math.sin(rad) * dist;
+      const camZ = pz + Math.cos(rad) * dist;
+      const camY = py + height;
+
+      currentCameraPos.x = camX;
+      currentCameraPos.y = camY;
+      currentCameraPos.z = camZ;
+
+      currentLookAt.x = px;
+      currentLookAt.y = py + tilt;
+      currentLookAt.z = pz;
+
+      console.log(`[orbit] Pico ${idx} | dist=${dist} height=${height} angle=${angle}° tilt=${tilt}`);
+    };
+
+    // Aproxima/afasta câmera (mantém direção)
+    window.closer = (amount = 1) => {
+      const dx = currentLookAt.x - currentCameraPos.x;
+      const dy = currentLookAt.y - currentCameraPos.y;
+      const dz = currentLookAt.z - currentCameraPos.z;
+      const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      if(len < 0.01) return;
+      currentCameraPos.x += (dx / len) * amount;
+      currentCameraPos.y += (dy / len) * amount;
+      currentCameraPos.z += (dz / len) * amount;
+      console.log(`[closer ${amount}] cameraPos:`, JSON.stringify(currentCameraPos));
+    };
+
+    // Sobe/desce câmera (mantém alvo)
+    window.higher = (amount = 1) => {
+      currentCameraPos.y += amount;
+      console.log(`[higher ${amount}] cameraPos.y =`, currentCameraPos.y.toFixed(2));
+    };
+
+    // Gira câmera em torno do alvo (orbita horizontal)
+    window.spin = (degrees = 10) => {
+      const dx = currentCameraPos.x - currentLookAt.x;
+      const dz = currentCameraPos.z - currentLookAt.z;
+      const rad = degrees * Math.PI / 180;
+      const cos = Math.cos(rad), sin = Math.sin(rad);
+      currentCameraPos.x = currentLookAt.x + dx * cos - dz * sin;
+      currentCameraPos.z = currentLookAt.z + dx * sin + dz * cos;
+      console.log(`[spin ${degrees}°] cameraPos:`, JSON.stringify(currentCameraPos));
+    };
+
+    // Inclina alvo da câmera para cima/baixo (sem mexer na posição)
+    window.tiltUp = (degrees = 5) => {
+      // Movimento aproximado: sobe o alvo proporcional à distância
+      const dx = currentLookAt.x - currentCameraPos.x;
+      const dz = currentLookAt.z - currentCameraPos.z;
+      const horiz = Math.sqrt(dx*dx + dz*dz);
+      const rad = degrees * Math.PI / 180;
+      currentLookAt.y += horiz * Math.tan(rad);
+      console.log(`[tiltUp ${degrees}°] lookAt.y =`, currentLookAt.y.toFixed(2));
+    };
+
+    // Dump dos valores atuais — pronto para colar no PAGES
+    window.dump = () => {
+      const pos  = currentCameraPos;
+      const look = currentLookAt;
+      const out =
+`${currentPage}: {
+  cameraPos:    { x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)} },
+  cameraLookAt: { x: ${look.x.toFixed(2)}, y: ${look.y.toFixed(2)}, z: ${look.z.toFixed(2)} },
+},`;
+      console.log(out);
+      return out;
+    };
+
+    console.log('[CALIBRAÇÃO] Helpers prontos. Use: peaks(), orbit(idx,...), closer(), higher(), spin(), tiltUp(), dump()');
+
+    // Ajusta materiais do GLB para a iluminação da cena
+    mountain.traverse(o => {
+      if(!o.isMesh || !o.material) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(mat => {
+        if(mat.map){
+          mat.map.colorSpace = THREE.SRGBColorSpace;
+          mat.map.needsUpdate = true;
+        }
+        if('roughness' in mat) mat.roughness = 0.92;
+        if('metalness' in mat) mat.metalness = 0.0;
+        if(mat.envMapIntensity !== undefined) mat.envMapIntensity = 0.08;
+        mat.needsUpdate = true;
+      });
+    });
+
+    // Aplica o fade DEPOIS dos ajustes de material
+    applyMountainFade(mountain, mountainModelMinY, mountainModelMaxY);
+
+    mountainBaseY = mountain.position.y;
+    scene.add(mountain);
+
+    buildAllClouds(mountain);
+  },
+  undefined,
+  (err) => {
+    console.warn('[SPHERA] GLB não encontrado — usando fallback procedural', err);
+    buildFallbackMountain();
+  }
+);
+
+function resize(){
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ============================================================
+   ESFERA DA MARCA — canvas 2D rotacionando (logo)
+   ------------------------------------------------------------
+   ⚠️ DESATIVADO no momento — o logo virou tipografia pura.
+   Este bloco é mantido para reativar facilmente caso o globo
+   girante volte a ser usado. Tudo está envelopado num guard
+   que verifica a existência do elemento #brand-sphere.
+
+   Para reativar:
+   1. Adicione <canvas id="brand-sphere"> no HTML do .brand
+   2. Este código volta a funcionar automaticamente
+   ============================================================ */
+const brandCanvas = document.getElementById('brand-sphere');
+const brandCtx = brandCanvas ? brandCanvas.getContext('2d') : null;
+let brandSize = 76;
+
+function resizeBrandCanvas(){
+  if(!brandCanvas) return;
+  const rect = brandCanvas.getBoundingClientRect();
+  brandSize = Math.max(40, Math.round(rect.width));
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  brandCanvas.width = brandSize * dpr;
+  brandCanvas.height = brandSize * dpr;
+  brandCtx.setTransform(1, 0, 0, 1, 0, 0);
+  brandCtx.scale(dpr, dpr);
+}
+resizeBrandCanvas();
+window.addEventListener('resize', resizeBrandCanvas);
+
+const brandPts = [];
+for(let i = 0; i < 320; i++){
+  const u = (Math.random() * 2 - 1);
+  const lat = Math.sign(u) * Math.pow(Math.abs(u), 0.42) * Math.PI / 2;
+  const lon = Math.random() * Math.PI * 2;
+  const roll = Math.random();
+  let style = 'sharp';
+  if(roll < 0.10) style = 'glow';
+  else if(roll < 0.35) style = 'blur';
+  brandPts.push({
+    lat, lon, style,
+    size: 0.55 + Math.random() * 0.85,
+    jitterPhase: Math.random() * Math.PI * 2,
+  });
+}
+
+function drawBrandSphere(t){
+  if(!brandCanvas || !brandCtx) return;
+  const w = brandSize, h = brandSize;
+  brandCtx.clearRect(0, 0, w, h);
+  const cx = w/2, cy = h/2;
+  const R = w * 0.42;
+  const sizeScale = w / 76;
+  const rotY = t * 0.45;
+  const tiltX = Math.sin(t*0.3) * 0.08 - 0.15;
+
+  const projected = brandPts.map(p => {
+    const cosLat = Math.cos(p.lat), sinLat = Math.sin(p.lat);
+    let x = cosLat * Math.cos(p.lon + rotY);
+    let z = cosLat * Math.sin(p.lon + rotY);
+    let y = sinLat;
+    const y2 = y * Math.cos(tiltX) - z * Math.sin(tiltX);
+    const z2 = y * Math.sin(tiltX) + z * Math.cos(tiltX);
+    return { x, y: y2, z: z2, p };
+  }).sort((a, b) => a.z - b.z);
+
+  for(const pt of projected){
+    const depth = (pt.z + 1) * 0.5;
+    const sx = cx + pt.x * R;
+    const sy = cy + pt.y * R;
+    const baseAlpha = 0.30 + depth * 0.70;
+    const twinkle = 0.85 + 0.15 * Math.sin(t * 1.8 + pt.p.jitterPhase);
+
+    if(pt.p.style === 'glow'){
+      const glowR = pt.p.size * sizeScale * (2.5 + depth * 1.8);
+      const grad = brandCtx.createRadialGradient(sx, sy, 0, sx, sy, glowR);
+      grad.addColorStop(0, `rgba(80, 150, 210, ${baseAlpha * 0.9 * twinkle})`);
+      grad.addColorStop(0.35, `rgba(80, 150, 210, ${baseAlpha * 0.35 * twinkle})`);
+      grad.addColorStop(1, 'rgba(80, 150, 210, 0)');
+      brandCtx.fillStyle = grad;
+      brandCtx.beginPath(); brandCtx.arc(sx, sy, glowR, 0, Math.PI*2); brandCtx.fill();
+      brandCtx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, baseAlpha * 1.1 * twinkle)})`;
+      brandCtx.beginPath(); brandCtx.arc(sx, sy, pt.p.size * sizeScale * 0.9, 0, Math.PI*2); brandCtx.fill();
+    } else if(pt.p.style === 'blur'){
+      const blurR = pt.p.size * sizeScale * (1.8 + depth * 0.8);
+      const grad = brandCtx.createRadialGradient(sx, sy, 0, sx, sy, blurR);
+      grad.addColorStop(0, `rgba(45, 98, 140, ${baseAlpha * 0.70})`);
+      grad.addColorStop(0.5, `rgba(45, 98, 140, ${baseAlpha * 0.30})`);
+      grad.addColorStop(1, 'rgba(45, 98, 140, 0)');
+      brandCtx.fillStyle = grad;
+      brandCtx.beginPath(); brandCtx.arc(sx, sy, blurR, 0, Math.PI*2); brandCtx.fill();
+    } else {
+      brandCtx.fillStyle = `rgba(45, 98, 140, ${baseAlpha})`;
+      brandCtx.beginPath(); brandCtx.arc(sx, sy, pt.p.size * sizeScale * (0.75 + depth * 0.45), 0, Math.PI*2); brandCtx.fill();
+    }
+  }
+}
+
+/* ============================================================
+   NAV — sublinhado animado seguindo o item ativo
+   ------------------------------------------------------------
+   Ao clicar num item da nav, dispara goToPage() para animar
+   a montanha até a posição daquela página.
+   ============================================================ */
+const navEl = document.getElementById('nav');
+const navInk = document.getElementById('nav-ink');
+const navLinks = [...document.querySelectorAll('.nav-a')];
+let activeIdx = 0;
+
+function moveInkTo(el){
+  if(!el) return;
+  const navRect = navEl.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  navInk.style.left = (elRect.left - navRect.left) + 'px';
+  navInk.style.width = elRect.width + 'px';
+}
+function setActive(i){
+  activeIdx = i;
+  navLinks.forEach((a, j) => a.classList.toggle('on', i === j));
+  moveInkTo(navLinks[i]);
+}
+navLinks.forEach((a, i) => {
+  a.addEventListener('mouseenter', () => moveInkTo(a));
+  a.addEventListener('click', (e) => {
+    e.preventDefault();
+    setActive(i);
+    goToPage(PAGE_NAMES[i]);          // ⭐ dispara transição da montanha
+  });
+});
+navEl.addEventListener('mouseleave', () => moveInkTo(navLinks[activeIdx]));
+window.addEventListener('load', () => setTimeout(() => setActive(0), 200));
+window.addEventListener('resize', () => moveInkTo(navLinks[activeIdx]));
+
+/* ============================================================
+   PARALLAX DE MOUSE — câmera reage suavemente ao cursor
+   ============================================================ */
+let mouseX = 0, mouseY = 0;
+window.addEventListener('mousemove', e => {
+  mouseX = (e.clientX / innerWidth - .5) * 2;
+  mouseY = (e.clientY / innerHeight - .5) * 2;
+}, { passive: true });
+
+/* ============================================================
+   ANIMAÇÃO DIRIGIDA POR SCROLL
+   ------------------------------------------------------------
+   Hoje a câmera fica TRAVADA. O scroll só dispara fades de UI
+   (CSS) e não move a montanha — isso evita conflito com a
+   transição de página (goToPage).
+
+   Se você quiser reativar movimento de câmera/montanha por
+   scroll no futuro, é aqui que vai. IMPORTANTE: lembrar de
+   respeitar a flag isTransitioning para não brigar com o
+   sistema de páginas.
+   ============================================================ */
+/* ============================================================
+   ANIMAÇÃO DIRIGIDA POR SCROLL
+   ------------------------------------------------------------
+   Conforme o usuário rola, soma offsets na posição da câmera:
+   - Z aumenta → câmera se afasta → GLB parece menor
+   - Y diminui → câmera desce → mostra mais céu acima
+
+   Vale para TODAS as páginas. A posição base vem do PAGES da
+   página atual; o scroll soma offsets em cima.
+
+   IMPORTANTE: respeita isTransitioning. Durante a transição
+   entre páginas, goToPage controla a câmera; quando termina,
+   applyScrollProgress assume novamente.
+
+   ⭐ CALIBRAÇÃO:
+     SCROLL_Z_OFFSET → quanto afasta no fim do scroll (Z)
+     SCROLL_Y_OFFSET → quanto desce no fim do scroll (Y)
+   ============================================================ */
+function applyScrollProgress(progress){
+  if(isTransitioning) return;
+  if(!PAGES[currentPage]) return;
+
+  // Curva ease-out cúbica — acelera no início, desacelera no fim
+  const eased = 1 - Math.pow(1 - progress, 3);
+
+  // ⭐ AMPLITUDES DO SCROLL (calibrar)
+  const SCROLL_Z_OFFSET = 36;   // ⭐ unidades de afastamento (dramático)
+  const SCROLL_Y_OFFSET = -9;   // ⭐ unidades verticais (negativo = desce câmera)
+
+  // Pega a posição base da página atual (sem scroll)
+  const base = PAGES[currentPage].cameraPos;
+  const baseLook = PAGES[currentPage].cameraLookAt;
+
+  // Aplica posição base + offsets do scroll
+  currentCameraPos.x = base.x;
+  currentCameraPos.y = base.y + eased * SCROLL_Y_OFFSET;
+  currentCameraPos.z = base.z + eased * SCROLL_Z_OFFSET;
+
+  // LookAt fica fixo na base — assim a câmera só recua,
+  // o ponto de mira não muda. Sensação de "câmera dolly back".
+  currentLookAt.x = baseLook.x;
+  currentLookAt.y = baseLook.y;
+  currentLookAt.z = baseLook.z;
+
+  /* ============================================================
+     EFEITO MONT-FORT — WOSS e SCROLL-CUE sobem e fazem fade
+     ------------------------------------------------------------
+     Conforme rola, ambos sobem juntos e fazem fade out — como
+     se fossem absorvidos pelas nuvens.
+
+     ⭐ CALIBRAÇÃO:
+       BRAND_RISE_PX → quantos pixels o WOSS/scroll-cue sobem
+       BRAND_FADE_END → em que progresso de scroll opacity = 0
+                        (0.15 = some quando scroll chegar a 15%)
+     ============================================================ */
+  const BRAND_RISE_PX = 60;            // ⭐ subida sutil
+  const BRAND_FADE_END = 0.05;         // ⭐ some em scroll 5% (era 15%, agora bem mais cedo)
+
+  // Curva linear para a opacidade (mais previsível que cúbica num range curto)
+  const fadeProgress = Math.min(1, progress / BRAND_FADE_END);
+  const opacity = 1 - fadeProgress;
+  const rise = -fadeProgress * BRAND_RISE_PX;   // negativo = sobe
+
+  if(brandEl){
+    // .brand tem transform: translateY(-50%) base. Somamos o rise mantendo a centralização.
+    brandEl.style.transform = `translateY(calc(-50% + ${rise}px))`;
+    brandEl.style.opacity = opacity;
+  }
+  if(scrollCueEl){
+    scrollCueEl.style.transform = `translateY(${rise}px)`;
+    scrollCueEl.style.opacity = opacity;
+  }
+}
+
+// Cache das referências DOM — evita query toda hora no loop animate.
+// Definidos como let porque podem não existir na hora do parse;
+// resolvemos no DOMContentLoaded ou nas primeiras chamadas.
+let brandEl = document.querySelector('.brand');
+let scrollCueEl = document.querySelector('.scroll-cue');
+
+const clock = new THREE.Clock();
+let smoothMouseX = 0, smoothMouseY = 0;
+let currentScrollProgress = 0;
+let targetScrollProgress = 0;
+
+window.addEventListener('scroll', () => {
+  const scrollStage = document.getElementById('scroll-stage');
+  if(!scrollStage) return;
+  const stageHeight = scrollStage.offsetHeight;
+  const scrolled = window.scrollY;
+  targetScrollProgress = Math.max(0, Math.min(1, scrolled / stageHeight));
+  document.body.classList.toggle('scrolled', scrolled > 30);
+  document.body.classList.toggle('scrolled-far', targetScrollProgress > 0.05);
+}, { passive: true });
+
+/* ============================================================
+   LOOP DE ANIMAÇÃO
+   ------------------------------------------------------------
+   PERFORMANCE — três modos por camada:
+     isStatic    → camada pulada totalmente (CPU zero)
+     isLowMotion → só o cluster atualiza (puffs frozen)
+     padrão      → cluster + cada puff individualmente
+
+   PARTE MAIS PESADA: o "else" (motion completo). Hoje só a L2
+   cai aqui (~120 clusters × ~7 puffs = ~840 puffs).
+   ============================================================ */
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const t  = clock.getElapsedTime();
+
+  smoothMouseX += (mouseX - smoothMouseX) * 0.018;
+  smoothMouseY += (mouseY - smoothMouseY) * 0.018;
+
+  mountainUniforms.uTime.value = t;
+
+  // CAMADAS HORIZONTAIS — pula static, lowMotion mais barato
+  for(const layer of cloudState.layers){
+    if(layer.isStatic) continue;
+
+    if(layer.isLowMotion){
+      // Só cluster anima (L1)
+      for(const cl of layer.clusters){
+        cl.group.position.x += cl.driftSpeed * dt;
+        if(cl.group.position.x > cl.wrapMax){
+          cl.group.position.x = cl.wrapMin;
+        }
+        cl.group.position.y = cl.baseY
+          + Math.sin(t * cl.driftPhaseYSpeed + cl.driftPhaseY) * cl.yBobAmp;
+      }
+    } else {
+      // Motion completo — cluster + puffs (L2)
+      for(const cl of layer.clusters){
+        cl.group.position.x += cl.driftSpeed * dt;
+        if(cl.group.position.x > cl.wrapMax){
+          cl.group.position.x = cl.wrapMin;
+        }
+        cl.group.position.y = cl.baseY
+          + Math.sin(t * cl.driftPhaseYSpeed + cl.driftPhaseY) * cl.yBobAmp;
+
+        for(const pf of cl.puffs){
+          pf.sprite.position.y = pf.basePosY
+            + Math.sin(t * pf.bobSpeed + pf.bobPhase) * cl.bobAmp;
+        }
+      }
+    }
+  }
+
+  // WISPS VERTICAIS (L3)
+  for(const wl of cloudState.wispLayers){
+    const cfg = wl.cfg;
+    for(const w of wl.wisps){
+      w.life += dt;
+      if(w.life >= w.lifetime) respawnWisp(w, cfg);
+
+      const lifeT = w.life / w.lifetime;
+      let fade;
+      if(lifeT < 0.25)      fade = lifeT / 0.25;
+      else if(lifeT > 0.65) fade = 1 - (lifeT - 0.65) / 0.35;
+      else                  fade = 1;
+      fade = Math.max(0, Math.min(1, fade));
+
+      const yPos = w.spawnY + w.life * w.riseSpeed;
+      const sway = Math.sin(t * w.swaySpeed + w.swayPhase) * w.swayAmp;
+      const xPos = w.spawnX + sway;
+
+      w.sprite.position.set(xPos, yPos, w.spawnZ);
+      w.mat.opacity = w.peakOpacity * fade;
+
+      const stretch = 1 + lifeT * 0.18;
+      w.sprite.scale.x = w.baseScaleX;
+      w.sprite.scale.y = w.baseScaleY * stretch;
+    }
+  }
+
+  // SCROLL EASING + APLICAÇÃO NA CENA
+  // ⭐ O fator 0.05 controla a suavidade. Valores menores = mais suave (mais lag).
+  // Mont-fort tem sensação ~0.04-0.06. Era 0.08 antes (mais responsivo, mas saltado).
+  currentScrollProgress += (targetScrollProgress - currentScrollProgress) * 0.05;
+  applyScrollProgress(currentScrollProgress);
+
+  // CANCELAMENTO DE YAW nas camadas DINÂMICAS.
+  // Mesmo sem rotação ao scroll, mountain.rotation.y muda durante
+  // a transição entre páginas (goToPage). As camadas dinâmicas
+  // precisam cancelar essa rotação para que as nuvens não girem
+  // junto com a montanha (visualmente estranho).
+  // L4 é static — pula porque visualmente imperceptível.
+  if(mountain){
+    for(const layer of cloudState.layers){
+      if(layer.isStatic) continue;        // pula L4
+      layer.yawCancel.rotation.y = -mountain.rotation.y;
+    }
+    for(const wl of cloudState.wispLayers){
+      wl.yawCancel.rotation.y = -mountain.rotation.y;
+    }
+  }
+
+  /* ============================================================
+     CÂMERA — POSIÇÃO + LOOKAT
+     ------------------------------------------------------------
+     Posição base vem do sistema de páginas (currentCameraPos),
+     interpolado em goToPage. Parallax do mouse soma offsets
+     por cima sem destruir a posição da página.
+
+     PARÂMETROS DE CALIBRAÇÃO:
+       PARALLAX_X → quanto a câmera anda em X (world units)
+       PARALLAX_Y → quanto a câmera anda em Y (world units)
+     ============================================================ */
+  const PARALLAX_X = 0.5;
+  const PARALLAX_Y = 0.3;
+
+  const offsetX = smoothMouseX * PARALLAX_X;
+  const offsetY = -smoothMouseY * PARALLAX_Y;
+
+  // Câmera = posição da página + parallax do mouse
+  camera.position.set(
+    currentCameraPos.x + offsetX,
+    currentCameraPos.y + offsetY,
+    currentCameraPos.z
+  );
+
+  // LookAt = alvo da página + parallax (mesmo offset → pan verdadeiro)
+  camera.lookAt(
+    currentLookAt.x + offsetX,
+    currentLookAt.y + offsetY,
+    currentLookAt.z
+  );
+
+  // DEBUG: marcador vermelho segue o ponto que a câmera mira
+  if(window._targetMarker){
+    window._targetMarker.position.set(
+      currentLookAt.x,
+      currentLookAt.y,
+      currentLookAt.z
+    );
+  }
+
+  // VARIAÇÃO SUTIL DA LUZ com scroll + flicker
+  const scrollGain = 0.58 * currentScrollProgress;
+  const flicker = 0.06 * Math.sin(t * 0.8) + 0.03 * Math.sin(t * 1.7 + 1.3);
+  keyLight.intensity = KEY_LIGHT_BASE + scrollGain + flicker * (0.3 + currentScrollProgress);
+
+  renderer.render(scene, camera);
+  drawBrandSphere(t);
+}
+animate();
+</script>
+</body>
+</html>
