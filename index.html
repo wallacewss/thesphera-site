@@ -1628,6 +1628,7 @@ function buildAllClouds(mountainGroup){
 const draco = new DRACOLoader();
 draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/libs/draco/');
 const loader = new GLTFLoader(manager);
+  loader.setResourcePath('https://pub-1a415c67069f4917a2143a623535265e.r2.dev/');
 loader.setDRACOLoader(draco);
 
 loader.load(
