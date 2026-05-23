@@ -1,0 +1,9 @@
+{
+  "name": "thesphera-market-intel",
+  "version": "1.0.0",
+  "description": "Molycop Market Intelligence dashboard hospedado em thesphera.com",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}
