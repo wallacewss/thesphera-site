@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOSS // SPHERA — Cena 01 (protótipo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  html { background: #07090c; }
+  body {
+    background: #07090c;
+    color: #d9dde3;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection { background: #fbbf24; color: #07090c; }
+
+  /* Fixed canvas behind everything */
+  #scene-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    display: block;
+  }
+
+  /* Subtle grid overlay — engineering paper feel, very faint */
+  .grid-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 80px 80px;
+    mix-blend-mode: screen;
+  }
+
+  /* Vignette to focus center */
+  .vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(7,9,12,0.65) 100%);
+  }
+
+  /* ─── Chrome — fixed UI ─── */
+
+  .wordmark {
+    position: fixed;
+    top: 28px;
+    left: 36px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.35em;
+    color: #d9dde3;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .wordmark .mark {
+    width: 8px;
+    height: 8px;
+    background: #fbbf24;
+    box-shadow: 0 0 12px rgba(251,191,36,0.5);
+  }
+  .wordmark .sub {
+    color: #4b5563;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    margin-left: 6px;
+  }
+
+  .top-meta {
+    position: fixed;
+    top: 28px;
+    right: 36px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: #6a7280;
+    z-index: 20;
+    text-align: right;
+  }
+  .top-meta .row { margin-bottom: 4px; }
+  .top-meta .label { color: #4b5563; }
+  .top-meta .val { color: #d9dde3; margin-left: 10px; }
+
+  .status-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 36px;
+    right: 36px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #6a7280;
+    letter-spacing: 0.18em;
+    z-index: 20;
+    border-top: 1px solid rgba(217,221,227,0.06);
+    padding-top: 12px;
+  }
+  .status-bar .group { display: flex; gap: 28px; }
+  .status-bar .field .label { color: #4b5563; }
+  .status-bar .field .val { color: #d9dde3; margin-left: 8px; }
+  .status-bar .field .val.accent { color: #fbbf24; }
+
+  .scroll-indicator {
+    position: fixed;
+    bottom: 56px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.35em;
+    color: #6a7280;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.4s;
+  }
+  .scroll-indicator .line {
+    width: 1px;
+    height: 32px;
+    background: linear-gradient(to bottom, transparent, #6a7280);
+    animation: pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scaleY(0.6); transform-origin: top; }
+    50% { opacity: 1; transform: scaleY(1); transform-origin: top; }
+  }
+
+  /* ─── Scroll content ─── */
+
+  .scroll-root {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .scene {
+    height: 100vh;
+    position: relative;
+  }
+
+  /* Scene 1 — title */
+  .scene-1 .title-block {
+    position: absolute;
+    top: 50%;
+    left: 56px;
+    transform: translateY(-50%);
+    max-width: 720px;
+  }
+  .scene-1 .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    color: #8b95a3;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .scene-1 .eyebrow::before {
+    content: '';
+    width: 28px;
+    height: 1px;
+    background: #fbbf24;
+  }
+  .scene-1 h1 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 200;
+    font-size: clamp(44px, 6.5vw, 92px);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+    color: #f5f7fa;
+  }
+  .scene-1 h1 .accent {
+    font-style: italic;
+    font-weight: 300;
+    color: #fbbf24;
+  }
+  .scene-1 .lede {
+    margin-top: 32px;
+    max-width: 480px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: #8b95a3;
+    font-weight: 300;
+  }
+
+  /* Scene 2 — annotations on the right side */
+  .scene-2 .annotations {
+    position: absolute;
+    top: 50%;
+    right: 56px;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    align-items: flex-end;
+  }
+  .ann-block {
+    opacity: 0;
+    transform: translateX(40px);
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .ann-block .head {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: #6a7280;
+    margin-bottom: 8px;
+  }
+  .ann-block .val {
+    font-size: 22px;
+    color: #f5f7fa;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+  .ann-block .val .unit {
+    font-size: 11px;
+    color: #8b95a3;
+    margin-left: 6px;
+    letter-spacing: 0.1em;
+  }
+  .ann-block .val .accent { color: #fbbf24; }
+  .ann-block .bar {
+    display: inline-block;
+    width: 40px;
+    height: 1px;
+    background: #4b5563;
+    margin-left: 14px;
+    vertical-align: middle;
+    transform: translateY(-4px);
+  }
+
+  /* Scene 3 — bridging copy */
+  .scene-3 .bridge {
+    position: absolute;
+    bottom: 18%;
+    left: 56px;
+    max-width: 540px;
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  .scene-3 .bridge .marker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: #fbbf24;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .scene-3 .bridge .marker::before {
+    content: '▸';
+    color: #fbbf24;
+  }
+  .scene-3 .bridge h2 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+    font-size: clamp(24px, 2.6vw, 36px);
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: #f5f7fa;
+  }
+  .scene-3 .bridge h2 em {
+    font-style: normal;
+    color: #fbbf24;
+    font-weight: 400;
+  }
+  .scene-3 .bridge .caption {
+    margin-top: 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: #6a7280;
+  }
+
+  /* Scene 4 — outro */
+  .scene-4 .outro {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    opacity: 0;
+  }
+  .scene-4 .outro .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.4em;
+    color: #6a7280;
+    margin-bottom: 18px;
+  }
+  .scene-4 .outro .next {
+    font-family: 'Inter', sans-serif;
+    font-weight: 200;
+    font-size: clamp(32px, 4vw, 56px);
+    letter-spacing: -0.02em;
+    color: #f5f7fa;
+  }
+  .scene-4 .outro .next em {
+    font-style: italic;
+    color: #fbbf24;
+    font-weight: 300;
+  }
+
+  /* Colormap legend (cute touch) */
+  .colormap-legend {
+    position: fixed;
+    left: 36px;
+    bottom: 72px;
+    z-index: 20;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: #6a7280;
+    opacity: 0;
+    transition: opacity 0.6s;
+  }
+  .colormap-legend .label {
+    margin-bottom: 6px;
+    color: #4b5563;
+  }
+  .colormap-legend .strip {
+    width: 180px;
+    height: 6px;
+    background: linear-gradient(to right,
+      rgb(68, 1, 84), rgb(72, 36, 117), rgb(65, 68, 135),
+      rgb(53, 95, 141), rgb(42, 120, 142), rgb(33, 145, 140),
+      rgb(34, 168, 132), rgb(68, 191, 112), rgb(122, 209, 81),
+      rgb(189, 222, 38), rgb(253, 231, 37));
+  }
+  .colormap-legend .scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    color: #6a7280;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene-canvas"></canvas>
+<div class="grid-overlay"></div>
+<div class="vignette"></div>
+
+<div class="wordmark">
+  <span class="mark"></span>
+  <span>WOSS</span>
+  <span class="sub">// SPHERA · DEM-SPH</span>
+</div>
+
+<div class="top-meta">
+  <div class="row"><span class="label">CASE</span><span class="val">RE-ENTRY · AXISYMMETRIC</span></div>
+  <div class="row"><span class="label">REV</span><span class="val">0247-α</span></div>
+</div>
+
+<div class="status-bar">
+  <div class="group">
+    <span class="field"><span class="label">RUN</span><span class="val">0247</span></span>
+    <span class="field"><span class="label">SOLVER</span><span class="val">SPHERA · DEM-SPH</span></span>
+    <span class="field"><span class="label">t</span><span class="val accent" id="t-val">0.000 s</span></span>
+  </div>
+  <div class="group">
+    <span class="field"><span class="label">HW</span><span class="val">8 × A100 · MGPU</span></span>
+    <span class="field"><span class="label">© 2026 WOSS</span></span>
+  </div>
+</div>
+
+<div class="scroll-indicator" id="scroll-indicator">
+  <span>SCROLL</span>
+  <span class="line"></span>
+</div>
+
+<div class="colormap-legend" id="colormap-legend">
+  <div class="label">|u| / U∞</div>
+  <div class="strip"></div>
+  <div class="scale"><span>0.0</span><span>0.8</span><span>1.6</span></div>
+</div>
+
+<div class="scroll-root">
+
+  <section class="scene scene-1">
+    <div class="title-block" id="title-block">
+      <div class="eyebrow">WOSS · COMPUTATIONAL ENGINEERING</div>
+      <h1>Da <span class="accent">atmosfera</span><br>até o <span class="accent">pit</span>,<br>um único solver.</h1>
+      <p class="lede">SPHERA integra DEM e SPH numa mesma arquitetura multi-GPU. A mesma física que resolve a frente de choque sobre uma fuselagem resolve a ruptura de talude num pit de cobre.</p>
+    </div>
+  </section>
+
+  <section class="scene scene-2">
+    <div class="annotations">
+      <div class="ann-block" data-i="0">
+        <div class="head">FREESTREAM · MACH</div>
+        <div class="val"><span class="accent">2.40</span><span class="bar"></span></div>
+      </div>
+      <div class="ann-block" data-i="1">
+        <div class="head">STATIC PRESSURE · P∞</div>
+        <div class="val">12.04<span class="unit">kPa</span></div>
+      </div>
+      <div class="ann-block" data-i="2">
+        <div class="head">STATIC TEMP · T∞</div>
+        <div class="val">222.6<span class="unit">K</span></div>
+      </div>
+      <div class="ann-block" data-i="3">
+        <div class="head">REYNOLDS · Re</div>
+        <div class="val">4.21 × 10⁶</div>
+      </div>
+      <div class="ann-block" data-i="4">
+        <div class="head">ANGLE OF ATTACK · α</div>
+        <div class="val">0.0°</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene scene-3">
+    <div class="bridge" id="bridge">
+      <div class="marker">CONTINUIDADE FÍSICA</div>
+      <h2>O mesmo kernel SPH que resolve <em>ondas de choque</em> sobre uma fuselagem resolve <em>ruptura granular</em> num talude de mina.</h2>
+      <div class="caption">— Mesma matemática. Domínios diferentes.</div>
+    </div>
+  </section>
+
+  <section class="scene scene-4">
+    <div class="outro" id="outro">
+      <div class="label">PRÓXIMA CENA</div>
+      <div class="next"><em>Desmonte</em> — vista explodida</div>
+    </div>
+  </section>
+
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.0.45/dist/lenis.min.js"></script>
+
+<script type="module">
+import * as THREE from 'three';
+
+gsap.registerPlugin(ScrollTrigger);
+
+/* ─── Lenis smooth scroll ──────────────────────────────────────── */
+const lenis = new Lenis({
+  duration: 1.4,
+  smoothWheel: true,
+  easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+});
+function rafLenis(time) { lenis.raf(time); requestAnimationFrame(rafLenis); }
+requestAnimationFrame(rafLenis);
+lenis.on('scroll', ScrollTrigger.update);
+
+/* ─── Three.js setup ───────────────────────────────────────────── */
+const canvas = document.getElementById('scene-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x07090c, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x07090c, 22, 70);
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 220);
+camera.position.set(0, 0, 22);
+camera.lookAt(0, 0, 0);
+
+/* ─── Atmospheric particles (background) ───────────────────────── */
+function buildParticles() {
+  const g = new THREE.BufferGeometry();
+  const n = 900;
+  const pos = new Float32Array(n * 3);
+  const sizes = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    pos[i*3]   = (Math.random() - 0.5) * 100;
+    pos[i*3+1] = (Math.random() - 0.5) * 60;
+    pos[i*3+2] = (Math.random() - 0.5) * 80 - 20;
+    sizes[i]   = Math.random() * 0.04 + 0.01;
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.035, color: 0x8b95a3,
+    transparent: true, opacity: 0.55,
+    sizeAttenuation: true,
+    depthWrite: false,
+  });
+  return new THREE.Points(g, mat);
+}
+const particles = buildParticles();
+scene.add(particles);
+
+/* ─── Rocket fuselage (procedural wireframe) ───────────────────── */
+const rocket = new THREE.Group();
+
+const wireMat = new THREE.LineBasicMaterial({
+  color: 0xf5f7fa, transparent: true, opacity: 0.9,
+});
+const wireSoft = new THREE.LineBasicMaterial({
+  color: 0x8b95a3, transparent: true, opacity: 0.55,
+});
+const accentMat = new THREE.LineBasicMaterial({
+  color: 0xfbbf24, transparent: true, opacity: 0.9,
+});
+
+function wireOf(geometry, material) {
+  const edges = new THREE.EdgesGeometry(geometry, 1);
+  return new THREE.LineSegments(edges, material);
+}
+
+// Body — segmented for station lines
+const RAD = 0.95;
+const LEN = 7.4;
+const SEGS = 6;
+for (let i = 0; i < SEGS; i++) {
+  const segGeo = new THREE.CylinderGeometry(RAD, RAD, LEN/SEGS, 28, 1, true);
+  const w = wireOf(segGeo, wireMat);
+  w.position.y = -LEN/2 + (i + 0.5) * (LEN/SEGS);
+  rocket.add(w);
+}
+
+// Nose cone
+const noseGeo = new THREE.ConeGeometry(RAD, 2.8, 28, 5);
+const nose = wireOf(noseGeo, wireMat);
+nose.position.y = LEN/2 + 1.4;
+rocket.add(nose);
+
+// Engine bell
+const bellGeo = new THREE.CylinderGeometry(RAD, RAD*1.35, 1.2, 28, 2, true);
+const bell = wireOf(bellGeo, wireMat);
+bell.position.y = -LEN/2 - 0.6;
+rocket.add(bell);
+
+// Inner nozzle line (accent)
+const nozzleGeo = new THREE.CylinderGeometry(RAD*0.85, RAD*1.2, 1.1, 28, 1, true);
+const nozzle = wireOf(nozzleGeo, accentMat);
+nozzle.position.y = -LEN/2 - 0.6;
+rocket.add(nozzle);
+
+// Fins — thin trapezoidal plates
+function buildFin(rot) {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  shape.lineTo(0.9, 0);
+  shape.lineTo(1.4, -1.0);
+  shape.lineTo(0, -1.0);
+  shape.lineTo(0, 0);
+  const ext = new THREE.ExtrudeGeometry(shape, { depth: 0.04, bevelEnabled: false });
+  const w = wireOf(ext, wireSoft);
+  w.rotation.y = rot;
+  w.position.set(0, -LEN/2 + 0.4, 0);
+  // Offset radially
+  const r = RAD;
+  w.position.x = Math.cos(rot) * r;
+  w.position.z = Math.sin(rot) * r;
+  return w;
+}
+for (let k = 0; k < 4; k++) {
+  rocket.add(buildFin(k * Math.PI / 2));
+}
+
+// Lay rocket horizontal (along +x)
+rocket.rotation.z = -Math.PI / 2;
+rocket.position.set(0.5, 0, 0);
+
+// Initially hidden
+rocket.scale.setScalar(0.001);
+rocket.rotation.y = -Math.PI / 6;
+
+scene.add(rocket);
+
+/* ─── Coordinate triad ─────────────────────────────────────────── */
+const triad = new THREE.Group();
+const AL = 0.7;
+function axisLine(end, color) {
+  const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0 });
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), end]);
+  return new THREE.Line(g, m);
+}
+const aX = axisLine(new THREE.Vector3(AL, 0, 0), 0xfbbf24);
+const aY = axisLine(new THREE.Vector3(0, AL, 0), 0xf5f7fa);
+const aZ = axisLine(new THREE.Vector3(0, 0, AL), 0x8b95a3);
+triad.add(aX, aY, aZ);
+triad.position.set(-7.5, -4.2, 0);
+scene.add(triad);
+
+/* ─── Streamlines (potential flow over cylinder, 2D in xy) ─────── */
+// We treat rocket as a 2D cylinder in xy plane for the flow viz.
+// Coordinates: x is horizontal (flow direction), y is vertical.
+const A = RAD * 1.05;     // effective body radius for flow
+const CX = 0.5;           // center x of body
+
+function flowAt(x, y) {
+  const dx = x - CX;
+  const r2 = dx*dx + y*y;
+  if (r2 < A*A * 0.99) return null;   // inside body — skip
+  const a2 = A*A;
+  // 2D potential flow over cylinder
+  const u = 1 - a2 * (dx*dx - y*y) / (r2*r2);
+  const v = -2 * a2 * dx * y / (r2*r2);
+  return { u, v };
+}
+
+// Viridis colormap (discrete samples, linearly interpolated)
+const VIRIDIS = [
+  [0.267,0.005,0.329],[0.282,0.140,0.458],[0.254,0.265,0.530],
+  [0.207,0.372,0.553],[0.164,0.471,0.558],[0.128,0.567,0.551],
+  [0.135,0.659,0.518],[0.267,0.749,0.441],[0.478,0.821,0.318],
+  [0.741,0.873,0.150],[0.993,0.906,0.144],
+];
+function vir(t) {
+  t = Math.min(Math.max(t, 0), 1);
+  const idx = t * (VIRIDIS.length - 1);
+  const i = Math.floor(idx);
+  const f = idx - i;
+  const c0 = VIRIDIS[i];
+  const c1 = VIRIDIS[Math.min(i+1, VIRIDIS.length-1)];
+  return [
+    c0[0] + (c1[0]-c0[0])*f,
+    c0[1] + (c1[1]-c0[1])*f,
+    c0[2] + (c1[2]-c0[2])*f,
+  ];
+}
+
+const streamlines = new THREE.Group();
+const NUM_LINES = 28;
+const Y_SPAN = 8.5;
+const X_START = -9;
+const X_END = 9;
+const STEP = 0.06;
+const MAX_STEPS = 380;
+
+for (let i = 0; i < NUM_LINES; i++) {
+  const y0 = -Y_SPAN/2 + (i + 0.5) * (Y_SPAN / NUM_LINES);
+  // Skip lines that would start inside body shadow zone
+  let x = X_START, y = y0;
+  const pts = [];
+  const cols = [];
+  for (let s = 0; s < MAX_STEPS; s++) {
+    const f = flowAt(x, y);
+    if (!f) break;
+    pts.push(new THREE.Vector3(x, y, 0));
+    const speed = Math.sqrt(f.u*f.u + f.v*f.v);
+    const c = vir((speed - 0.4) / 1.2);
+    cols.push(c[0], c[1], c[2]);
+    x += f.u * STEP;
+    y += f.v * STEP;
+    if (x > X_END) break;
+  }
+  if (pts.length < 2) continue;
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const m = new THREE.LineBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0,
+  });
+  streamlines.add(new THREE.Line(g, m));
+}
+scene.add(streamlines);
+
+/* ─── Station rings (subtle horizontal markers on body) ────────── */
+const stationRings = new THREE.Group();
+for (let i = 1; i < SEGS; i++) {
+  const ringGeo = new THREE.RingGeometry(RAD*0.99, RAD*1.01, 32, 1);
+  const m = new THREE.MeshBasicMaterial({
+    color: 0xfbbf24, side: THREE.DoubleSide,
+    transparent: true, opacity: 0,
+  });
+  const ring = new THREE.Mesh(ringGeo, m);
+  ring.rotation.x = Math.PI / 2;
+  // Position along body length (which is along x after rotation)
+  ring.position.x = -LEN/2 + i * (LEN/SEGS) + 0.5;
+  ring.rotation.y = Math.PI / 2;
+  stationRings.add(ring);
+}
+scene.add(stationRings);
+
+/* ─── Resize ───────────────────────────────────────────────────── */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ─── Scroll-driven master timeline ────────────────────────────── */
+const tl = gsap.timeline({
+  scrollTrigger: {
+    trigger: '.scroll-root',
+    start: 'top top',
+    end: 'bottom bottom',
+    scrub: 0.8,
+  }
+});
+
+// Rocket appears 18%–35%
+tl.fromTo(rocket.scale, { x: 0.001, y: 0.001, z: 0.001 },
+  { x: 1, y: 1, z: 1, ease: 'power3.out' }, 0.18)
+  .to(rocket.rotation, { y: Math.PI/6, ease: 'none' }, 0.18);
+
+// Camera slowly pulls back + shifts
+tl.to(camera.position, { x: -1.5, y: 0.3, z: 24, ease: 'none' }, 0)
+  .to(camera.position, { x: -0.5, y: 0, z: 20, ease: 'none' }, 0.6);
+
+// Triad fade-in
+tl.to([aX.material, aY.material, aZ.material],
+  { opacity: 0.55, duration: 0.1 }, 0.28);
+
+// Streamlines reveal — staggered from center outward
+const center = NUM_LINES / 2;
+streamlines.children.forEach((line, i) => {
+  const distFromCenter = Math.abs(i - center) / center;
+  const start = 0.42 + distFromCenter * 0.18;
+  tl.to(line.material, { opacity: 0.85, duration: 0.05, ease: 'power1.out' }, start);
+});
+
+// Station rings glow briefly
+stationRings.children.forEach((ring, i) => {
+  tl.to(ring.material, { opacity: 0.7, duration: 0.04 }, 0.50 + i * 0.015)
+    .to(ring.material, { opacity: 0.25, duration: 0.06 }, 0.58 + i * 0.015);
+});
+
+/* ─── Overlay text animations ──────────────────────────────────── */
+// Scene 1 title — fade out as we leave
+ScrollTrigger.create({
+  trigger: '.scene-1',
+  start: 'top top',
+  end: 'bottom top',
+  onUpdate: (self) => {
+    const el = document.getElementById('title-block');
+    el.style.opacity = 1 - self.progress;
+    el.style.transform = `translateY(calc(-50% - ${self.progress * 40}px))`;
+  }
+});
+
+// Scene 2 annotations — fade in staggered, fade out at end
+const annBlocks = document.querySelectorAll('.scene-2 .ann-block');
+ScrollTrigger.create({
+  trigger: '.scene-2',
+  start: 'top bottom',
+  end: 'bottom top',
+  onUpdate: (self) => {
+    const p = self.progress;
+    annBlocks.forEach((el, i) => {
+      const startOff = 0.25 + i * 0.07;
+      const endOff = 0.85;
+      let v = 0;
+      if (p > startOff) v = Math.min((p - startOff) / 0.08, 1);
+      if (p > endOff) v *= Math.max(0, 1 - (p - endOff) / 0.15);
+      el.style.opacity = v;
+      el.style.transform = `translateX(${(1 - v) * 30}px)`;
+    });
+  }
+});
+
+// Scene 3 bridge text
+ScrollTrigger.create({
+  trigger: '.scene-3',
+  start: 'top bottom',
+  end: 'bottom top',
+  onUpdate: (self) => {
+    const el = document.getElementById('bridge');
+    const p = self.progress;
+    let v = 0;
+    if (p > 0.3) v = Math.min((p - 0.3) / 0.2, 1);
+    if (p > 0.85) v *= Math.max(0, 1 - (p - 0.85) / 0.15);
+    el.style.opacity = v;
+    el.style.transform = `translateY(${(1 - v) * 30}px)`;
+  }
+});
+
+// Scene 4 outro
+ScrollTrigger.create({
+  trigger: '.scene-4',
+  start: 'top bottom',
+  end: 'bottom bottom',
+  onUpdate: (self) => {
+    const el = document.getElementById('outro');
+    el.style.opacity = Math.min(self.progress * 2, 1);
+  }
+});
+
+// Hide scroll indicator after first interaction
+ScrollTrigger.create({
+  trigger: '.scroll-root',
+  start: 'top top+=150',
+  onEnter: () => gsap.to('#scroll-indicator', { opacity: 0, duration: 0.4 }),
+  onLeaveBack: () => gsap.to('#scroll-indicator', { opacity: 1, duration: 0.4 }),
+});
+
+// Colormap legend appears when streamlines do
+ScrollTrigger.create({
+  trigger: '.scroll-root',
+  start: 'top top',
+  end: 'bottom bottom',
+  onUpdate: (self) => {
+    const el = document.getElementById('colormap-legend');
+    el.style.opacity = self.progress > 0.42 && self.progress < 0.88 ? 0.85 : 0;
+  }
+});
+
+/* ─── Render loop ──────────────────────────────────────────────── */
+const clock = new THREE.Clock();
+let tSim = 0;
+const tEl = document.getElementById('t-val');
+
+function render() {
+  const dt = clock.getDelta();
+  tSim += dt;
+
+  // Subtle particle drift
+  particles.rotation.y += dt * 0.015;
+  particles.position.x = Math.sin(tSim * 0.1) * 0.5;
+
+  // Update simulated time display
+  if (tEl) tEl.textContent = tSim.toFixed(3) + ' s';
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(render);
+}
+render();
+
+// Force ScrollTrigger to recompute after initial layout
+ScrollTrigger.refresh();
+</script>
+</body>
+</html>
